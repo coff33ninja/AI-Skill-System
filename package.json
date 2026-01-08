@@ -13,14 +13,13 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@modelcontextprotocol/sdk": "^1.25.2",
+    "@nut-tree-fork/nut-js": "^4.2.6",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "screenshot-desktop": "^1.15.0",
     "ws": "^8.18.0",
-    "zod": "^3.24.1",
-    "@nut-tree-fork/nut-js": "^4.2.6",
-    "screenshot-desktop": "^1.15.0"
+    "zod": "^3.24.1"
   },
-  "optionalDependencies": {},
   "devDependencies": {
     "@types/node": "^22.10.5",
     "@types/screenshot-desktop": "^1.15.0",

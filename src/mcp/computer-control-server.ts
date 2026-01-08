@@ -8,7 +8,7 @@ import screenshot from "screenshot-desktop";
 let robot: any;
 try {
   // @ts-ignore
-  robot = (await import("nut-js")).default;
+  robot = (await import("@nut-tree-fork/nut-js")).default;
 } catch (e) {
   console.error("Could not import nut-js, computer control tools will not be available.");
   robot = new Proxy({}, {
