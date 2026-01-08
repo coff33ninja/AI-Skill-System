@@ -4,14 +4,23 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import screenshot from "screenshot-desktop";
 
-// Optional dependency
-let robot: any;
+// Optional nut-js dependency for mouse/keyboard control
+let mouse: any;
+let keyboard: any;
+let Key: any;
+let Button: any;
+let robotAvailable = false;
+
 try {
-  // @ts-ignore
-  robot = (await import("nut-js")).default;
+  const nutjs = await import("@nut-tree-fork/nut-js");
+  mouse = nutjs.mouse;
+  keyboard = nutjs.keyboard;
+  Key = nutjs.Key;
+  Button = nutjs.Button;
+  robotAvailable = true;
+  console.error("✅ nut-js loaded successfully");
 } catch (e) {
-  console.error("⚠️  nut-js is not available. Install with: npm install @nut-tree-fork/nut-js");
-  console.error("   Computer control tools (mouse, keyboard) will be disabled.");
+  console.error("⚠️  nut-js not available. Mouse/keyboard control disabled.");
 }
 
 interface ControlState {
@@ -20,23 +29,12 @@ interface ControlState {
   expiresAt?: number;
 }
 
-const state: ControlState = {
-  enabled: false
-};
+const state: ControlState = { enabled: false };
 
 const server = new Server(
-  {
-    name: "human-computer-control",
-    version: "1.0.0"
-  },
-  {
-    capabilities: {
-      tools: {}
-    }
-  }
+  { name: "human-computer-control", version: "1.0.0" },
+  { capabilities: { tools: {} } }
 );
-
-// ========== CONSENT & CONTROL ==========
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -45,9 +43,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       description: "Grant AI permission to control computer (time-limited)",
       inputSchema: {
         type: "object",
-        properties: {
-          durationMs: { type: "number", default: 300000 }
-        }
+        properties: { durationMs: { type: "number", default: 300000 } }
       }
     },
     {
@@ -67,13 +63,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "mouse_move",
-      description: "Move mouse smoothly to coordinates",
+      description: "Move mouse to coordinates",
       inputSchema: {
         type: "object",
-        properties: {
-          x: { type: "number" },
-          y: { type: "number" }
-        },
+        properties: { x: { type: "number" }, y: { type: "number" } },
         required: ["x", "y"]
       }
     },
@@ -90,23 +83,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "keyboard_type",
-      description: "Type text as if human",
+      description: "Type text",
       inputSchema: {
         type: "object",
-        properties: {
-          text: { type: "string" }
-        },
+        properties: { text: { type: "string" } },
         required: ["text"]
       }
     },
     {
       name: "keyboard_shortcut",
-      description: "Execute keyboard shortcut (e.g., 'control+c')",
+      description: "Execute keyboard shortcut (e.g., 'ctrl+c')",
       inputSchema: {
         type: "object",
-        properties: {
-          keys: { type: "string" }
-        },
+        properties: { keys: { type: "string" } },
         required: ["keys"]
       }
     }
@@ -123,15 +112,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
   switch (name) {
     case "control_enable": {
-      const duration = (args as any)?.durationMs || 300000;
+      const duration = args?.durationMs || 300000;
       state.enabled = true;
       state.grantedAt = Date.now();
       state.expiresAt = Date.now() + duration;
-      
       return {
         content: [{
           type: "text",
-          text: `✅ Control enabled for ${duration/1000}s (expires: ${new Date(state.expiresAt!).toISOString()})`
+          text: `✅ Control enabled for ${duration/1000}s`
         }]
       };
     }
@@ -139,22 +127,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
     case "control_disable": {
       state.enabled = false;
       state.expiresAt = undefined;
-      
-      return {
-        content: [{
-          type: "text",
-          text: "🛑 Control disabled"
-        }]
-      };
+      return { content: [{ type: "text", text: "🛑 Control disabled" }] };
     }
 
     case "control_status": {
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(state, null, 2)
-        }]
-      };
+      return { content: [{ type: "text", text: JSON.stringify(state, null, 2) }] };
     }
 
     case "screen_observe": {
@@ -171,103 +148,85 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
     case "mouse_move": {
       if (!state.enabled) throw new Error("Control not enabled");
-      if (!robotAvailable) throw new Error("nut-js not available - mouse control disabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
       
-      const { x, y } = (args as any) as { x: number; y: number };
-      await robot.mouse.setPosition({ x, y });
-      
-      return {
-        content: [{
-          type: "text",
-          text: `Mouse → (${x}, ${y})`
-        }]
-      };
+      const { x, y } = args as { x: number; y: number };
+      await mouse.setPosition({ x, y });
+      return { content: [{ type: "text", text: `Mouse → (${x}, ${y})` }] };
     }
 
     case "mouse_click": {
       if (!state.enabled) throw new Error("Control not enabled");
-      if (!robotAvailable) throw new Error("nut-js not available - mouse control disabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
       
-      const { button = "left", double = false } = (args as any) || {};
+      const { button = "left", double = false } = args || {};
       
       if (double) {
-        await robot.mouse.doubleClick(robot.Button.LEFT);
+        await mouse.doubleClick(Button.LEFT);
+      } else if (button === "right") {
+        await mouse.rightClick();
+      } else if (button === "middle") {
+        await mouse.click(Button.MIDDLE);
       } else {
-        const buttonMap: any = {
-          left: robot.Button.LEFT,
-          right: robot.Button.RIGHT,
-          middle: robot.Button.MIDDLE
-        };
-        await robot.mouse.click(buttonMap[button] || robot.Button.LEFT);
+        await mouse.leftClick();
       }
       
-      return {
-        content: [{
-          type: "text",
-          text: `Mouse ${button} ${double ? "double-" : ""}click`
-        }]
-      };
+      return { content: [{ type: "text", text: `Mouse ${button} ${double ? "double-" : ""}click` }] };
     }
 
     case "keyboard_type": {
       if (!state.enabled) throw new Error("Control not enabled");
-      if (!robotAvailable) throw new Error("nut-js not available - keyboard control disabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
       
-      const { text } = (args as any) as { text: string };
-      await robot.keyboard.type(text);
-      
-      return {
-        content: [{
-          type: "text",
-          text: `Typed: "${text}"`
-        }]
-      };
+      const { text } = args as { text: string };
+      await keyboard.type(text);
+      return { content: [{ type: "text", text: `Typed: "${text}"` }] };
     }
 
     case "keyboard_shortcut": {
       if (!state.enabled) throw new Error("Control not enabled");
-      if (!robotAvailable) throw new Error("nut-js not available - keyboard control disabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
       
-      const { keys } = (args as any) as { keys: string };
-      
-      // Parse shortcut like "control+c" or "alt+tab"
+      const { keys } = args as { keys: string };
       const parts = keys.toLowerCase().split("+");
-      const modifiers = parts.slice(0, -1);
-      const mainKey = parts[parts.length - 1];
+      const keyList: any[] = [];
       
-      // Build key combination
-      const keyCombo = [];
-      for (const mod of modifiers) {
-        if (mod === "control" || mod === "ctrl") keyCombo.push(robot.Key.LeftControl);
-        else if (mod === "alt") keyCombo.push(robot.Key.LeftAlt);
-        else if (mod === "shift") keyCombo.push(robot.Key.LeftShift);
-        else if (mod === "super" || mod === "win" || mod === "cmd") keyCombo.push(robot.Key.LeftSuper);
-      }
-      
-      // Add main key (map common keys)
-      const keyMap: any = {
-        'c': robot.Key.C, 'v': robot.Key.V, 'x': robot.Key.X, 'a': robot.Key.A,
-        'tab': robot.Key.Tab, 'enter': robot.Key.Enter, 'escape': robot.Key.Escape,
-        'space': robot.Key.Space, 'backspace': robot.Key.Backspace
+      // Map modifier and regular keys
+      const keyMap: Record<string, any> = {
+        'ctrl': Key.LeftControl, 'control': Key.LeftControl,
+        'alt': Key.LeftAlt, 'shift': Key.LeftShift,
+        'cmd': Key.LeftSuper, 'win': Key.LeftSuper, 'super': Key.LeftSuper,
+        'tab': Key.Tab, 'enter': Key.Return, 'return': Key.Return,
+        'escape': Key.Escape, 'esc': Key.Escape,
+        'space': Key.Space, 'backspace': Key.Backspace,
+        'delete': Key.Delete, 'home': Key.Home, 'end': Key.End,
+        'up': Key.Up, 'down': Key.Down, 'left': Key.Left, 'right': Key.Right,
+        'a': Key.A, 'b': Key.B, 'c': Key.C, 'd': Key.D, 'e': Key.E,
+        'f': Key.F, 'g': Key.G, 'h': Key.H, 'i': Key.I, 'j': Key.J,
+        'k': Key.K, 'l': Key.L, 'm': Key.M, 'n': Key.N, 'o': Key.O,
+        'p': Key.P, 'q': Key.Q, 'r': Key.R, 's': Key.S, 't': Key.T,
+        'u': Key.U, 'v': Key.V, 'w': Key.W, 'x': Key.X, 'y': Key.Y, 'z': Key.Z,
+        '0': Key.Num0, '1': Key.Num1, '2': Key.Num2, '3': Key.Num3, '4': Key.Num4,
+        '5': Key.Num5, '6': Key.Num6, '7': Key.Num7, '8': Key.Num8, '9': Key.Num9,
+        'f1': Key.F1, 'f2': Key.F2, 'f3': Key.F3, 'f4': Key.F4,
+        'f5': Key.F5, 'f6': Key.F6, 'f7': Key.F7, 'f8': Key.F8,
+        'f9': Key.F9, 'f10': Key.F10, 'f11': Key.F11, 'f12': Key.F12
       };
       
-      if (keyMap[mainKey]) {
-        keyCombo.push(keyMap[mainKey]);
-      } else if (mainKey.length === 1) {
-        // Single character
-        keyCombo.push(mainKey.toUpperCase());
+      for (const part of parts) {
+        const key = keyMap[part];
+        if (key) keyList.push(key);
       }
       
-      // Execute shortcut
-      await robot.keyboard.pressKey(...keyCombo);
-      await robot.keyboard.releaseKey(...keyCombo);
+      if (keyList.length === 0) {
+        throw new Error(`Unknown keys: ${keys}`);
+      }
       
-      return {
-        content: [{
-          type: "text",
-          text: `Shortcut: ${keys}`
-        }]
-      };
+      // Press all keys, then release in reverse order
+      for (const k of keyList) await keyboard.pressKey(k);
+      for (const k of keyList.reverse()) await keyboard.releaseKey(k);
+      
+      return { content: [{ type: "text", text: `Shortcut: ${keys}` }] };
     }
 
     default:
@@ -275,9 +234,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
   }
 });
 
-// ========== START ==========
-
+// Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);
-
 console.error("🧠 Computer Control MCP Server running");

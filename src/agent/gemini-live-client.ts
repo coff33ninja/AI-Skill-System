@@ -39,7 +39,7 @@ export class GeminiLiveClient {
 
   constructor(config: LiveClientConfig) {
     this.config = {
-      model: "models/gemini-2.5-flash-native-audio-preview-12-2025", // Gemini 2.5 Flash Live for TTS/STT
+      model: "models/gemini-2.5-flash-exp", // Fallback to 2.5 flash exp which supports Live API
       voiceName: "Aoede",
       ...config
     };
