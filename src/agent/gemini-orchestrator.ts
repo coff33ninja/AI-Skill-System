@@ -37,7 +37,7 @@ export class GeminiOrchestrator {
       const tools = toolsResponse.tools || [];
 
       this.currentModel = genAI.getGenerativeModel({
-        model: "gemini-1.5-pro",
+        model: "gemini-2.5-flash-native-audio-preview-12-2025",
         tools: tools as any,
         systemInstruction: `
 You are an AI agent that controls computers through MCP tools.
