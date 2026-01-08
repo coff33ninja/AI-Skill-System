@@ -31,6 +31,12 @@ export interface LiveEvent {
  * Gemini Live API Client for real-time TTS/STT
  * Uses WebSocket bidirectional streaming
  */
+// Available Live API models (as of January 2026):
+// - models/gemini-2.5-flash-native-audio-preview-12-2025 (current, recommended)
+// - models/gemini-2.5-flash-native-audio-preview-09-2025 (older preview)
+// Deprecated: gemini-2.0-flash-live-001, gemini-live-2.5-flash-preview (shutdown Dec 2025)
+const DEFAULT_LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
+
 export class GeminiLiveClient {
   private ws?: WebSocket;
   private config: LiveClientConfig;
@@ -39,7 +45,7 @@ export class GeminiLiveClient {
 
   constructor(config: LiveClientConfig) {
     this.config = {
-      model: "models/gemini-2.5-flash-exp", // Fallback to 2.5 flash exp which supports Live API
+      model: DEFAULT_LIVE_MODEL,
       voiceName: "Aoede",
       ...config
     };
@@ -62,6 +68,7 @@ export class GeminiLiveClient {
       this.ws.on("message", (data: Buffer) => {
         try {
           const message = JSON.parse(data.toString());
+          console.log("📥 Received:", JSON.stringify(message, null, 2).slice(0, 500));
           this.handleMessage(message);
           
           if (message.setupComplete) {
@@ -101,7 +108,7 @@ export class GeminiLiveClient {
       setup: {
         model: this.config.model,
         generationConfig: {
-          responseModalities: ["AUDIO", "TEXT"],
+          responseModalities: ["audio"],
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
@@ -116,6 +123,7 @@ export class GeminiLiveClient {
       }
     };
 
+    console.log("📤 Sending setup:", JSON.stringify(setupMessage, null, 2));
     this.send(setupMessage);
   }
 

@@ -7,9 +7,24 @@ import { DriftTracker } from "../memory/drift-tracker.js";
 import { GeminiLiveClient, LiveEvent } from "./gemini-live-client.js";
 import { AudioPlayer } from "./audio-player.js";
 
-// Model configuration - Gemini 2.5 Flash family
+// Model configuration - Current Gemini models (as of January 2026)
+// See: https://ai.google.dev/gemini-api/docs/models
+// See deprecations: https://ai.google.dev/gemini-api/docs/deprecations
+
+// Available text models (newest to oldest):
+// - gemini-3-pro-preview: Most intelligent, best for complex reasoning
+// - gemini-3-flash-preview: Balanced speed/intelligence  
+// - gemini-2.5-pro: Stable, advanced thinking model
+// - gemini-2.5-flash: Stable, best price-performance (recommended default)
+// - gemini-2.5-flash-lite: Ultra fast, cost-efficient
+
+// Available Live API models for real-time audio:
+// - gemini-2.5-flash-native-audio-preview-12-2025 (current)
+// - gemini-2.5-flash-native-audio-preview-09-2025 (older preview)
+// Deprecated: gemini-2.0-flash-live-001, gemini-live-2.5-flash-preview (shutdown Dec 2025)
+
 const TEXT_MODEL = "gemini-2.5-flash"; // Stable - for standard text/tool operations via generateContent
-const LIVE_MODEL = "models/gemini-2.5-flash-exp"; // For real-time audio TTS/STT via Live API
+const LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"; // For real-time audio TTS/STT via Live API
 
 export class GeminiOrchestrator {
   private keyPool: GeminiKeyPool;

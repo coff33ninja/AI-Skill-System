@@ -10,3 +10,4 @@ dist/
 data/*.json
 build/
 coverage/
+.kiro/
