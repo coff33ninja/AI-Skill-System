@@ -1,4 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import crypto from 'crypto';
 
 // Add a state for each connection
@@ -15,6 +17,7 @@ export class MeshNode {
   private wss: WebSocketServer;
   private connections = new Map<WebSocket, ConnectionState>();
   private authToken: string;
+  private mcpClient?: Client;
 
   constructor(port: number = 8080, authToken?: string) {
     this.wss = new WebSocketServer({ port });
@@ -35,7 +38,35 @@ export class MeshNode {
       return crypto.randomBytes(32).toString('hex');
   }
 
+  /**
+   * Connect to local MCP server for tool execution
+   */
+  private async connectLocalMCP() {
+    if (this.mcpClient) return;
+
+    try {
+      const transport = new StdioClientTransport({
+        command: "node",
+        args: ["dist/mcp/computer-control-server.js"]
+      });
+
+      this.mcpClient = new Client(
+        { name: "mesh-node", version: "1.0.0" },
+        { capabilities: {} }
+      );
+
+      await this.mcpClient.connect(transport);
+      console.log("✅ Mesh Node connected to local MCP server");
+    } catch (error) {
+      console.error("❌ Failed to connect to local MCP server:", error);
+      throw error;
+    }
+  }
+
   async start() {
+    // Connect to local MCP server on startup
+    await this.connectLocalMCP();
+
     this.wss.on('connection', (ws: WebSocket) => {
       console.log("🔗 Client connected to Mesh Node. Awaiting authentication.");
       this.connections.set(ws, { isAuthenticated: false });
@@ -75,6 +106,10 @@ export class MeshNode {
           }
         } catch (err) {
           console.error("Failed to process mesh message:", err);
+          ws.send(JSON.stringify({ 
+            type: 'ERROR', 
+            error: err instanceof Error ? err.message : String(err) 
+          }));
         }
       });
 
@@ -86,12 +121,25 @@ export class MeshNode {
   }
 
   private async handleLocalExecution(tool: string, args: any) {
-    // SECURITY WARNING: This is a stub and does not actually execute tools.
-    // In a production scenario, this MUST be implemented to securely proxy
-    // commands to the local MCP server (computer-control-server.ts).
-    // Exposing this node without a proper proxy is a major security risk.
-    console.log(`[STUB] ⚡ Executing remote command: ${tool} with args:`, args);
-    return { status: "success", tool, note: "This was a stubbed execution." };
+    if (!this.mcpClient) {
+      throw new Error("MCP client not connected");
+    }
+
+    console.log(`⚡ Executing remote command: ${tool}`);
+    console.log(`   Args:`, JSON.stringify(args, null, 2));
+
+    try {
+      const result = await this.mcpClient.callTool({
+        name: tool,
+        arguments: args || {}
+      });
+
+      console.log(`✅ Tool ${tool} executed successfully`);
+      return { status: "success", result };
+    } catch (error) {
+      console.error(`❌ Tool ${tool} execution failed:`, error);
+      throw error;
+    }
   }
 }
 

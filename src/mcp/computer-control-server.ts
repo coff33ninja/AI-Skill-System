@@ -4,18 +4,18 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import screenshot from "screenshot-desktop";
 
-// Optional dependency
-let robot: any;
+// Optional dependency - import with better error handling
+let robot: any = null;
+let robotAvailable = false;
+
 try {
-  // @ts-ignore
-  robot = (await import("nut-js")).default;
+  const nutjs = await import("@nut-tree-fork/nut-js");
+  robot = nutjs;
+  robotAvailable = true;
+  console.error("✅ nut-js loaded successfully");
 } catch (e) {
-  console.error("Could not import nut-js, computer control tools will not be available.");
-  robot = new Proxy({}, {
-    get: (target, prop) => {
-      throw new Error(`nut-js is not available, but required for tool call "${String(prop)}". Please install it manually.`);
-    }
-  });
+  console.error("⚠️  nut-js is not available. Install with: npm install @nut-tree-fork/nut-js");
+  console.error("   Computer control tools (mouse, keyboard) will be disabled.");
 }
 
 interface ControlState {
@@ -175,9 +175,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
     case "mouse_move": {
       if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available - mouse control disabled");
       
       const { x, y } = (args as any) as { x: number; y: number };
-      robot.moveMouseSmooth(x, y);
+      await robot.mouse.setPosition({ x, y });
       
       return {
         content: [{
@@ -189,9 +190,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
     case "mouse_click": {
       if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available - mouse control disabled");
       
       const { button = "left", double = false } = (args as any) || {};
-      robot.mouseClick(button, double);
+      
+      if (double) {
+        await robot.mouse.doubleClick(robot.Button.LEFT);
+      } else {
+        const buttonMap: any = {
+          left: robot.Button.LEFT,
+          right: robot.Button.RIGHT,
+          middle: robot.Button.MIDDLE
+        };
+        await robot.mouse.click(buttonMap[button] || robot.Button.LEFT);
+      }
       
       return {
         content: [{
@@ -203,9 +215,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
     case "keyboard_type": {
       if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available - keyboard control disabled");
       
       const { text } = (args as any) as { text: string };
-      robot.typeString(text);
+      await robot.keyboard.type(text);
       
       return {
         content: [{
@@ -217,11 +230,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
     case "keyboard_shortcut": {
       if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available - keyboard control disabled");
       
       const { keys } = (args as any) as { keys: string };
-      const parts = keys.split("+");
       
-      robot.keyTap(parts[parts.length - 1], parts.slice(0, -1) as any);
+      // Parse shortcut like "control+c" or "alt+tab"
+      const parts = keys.toLowerCase().split("+");
+      const modifiers = parts.slice(0, -1);
+      const mainKey = parts[parts.length - 1];
+      
+      // Build key combination
+      const keyCombo = [];
+      for (const mod of modifiers) {
+        if (mod === "control" || mod === "ctrl") keyCombo.push(robot.Key.LeftControl);
+        else if (mod === "alt") keyCombo.push(robot.Key.LeftAlt);
+        else if (mod === "shift") keyCombo.push(robot.Key.LeftShift);
+        else if (mod === "super" || mod === "win" || mod === "cmd") keyCombo.push(robot.Key.LeftSuper);
+      }
+      
+      // Add main key (map common keys)
+      const keyMap: any = {
+        'c': robot.Key.C, 'v': robot.Key.V, 'x': robot.Key.X, 'a': robot.Key.A,
+        'tab': robot.Key.Tab, 'enter': robot.Key.Enter, 'escape': robot.Key.Escape,
+        'space': robot.Key.Space, 'backspace': robot.Key.Backspace
+      };
+      
+      if (keyMap[mainKey]) {
+        keyCombo.push(keyMap[mainKey]);
+      } else if (mainKey.length === 1) {
+        // Single character
+        keyCombo.push(mainKey.toUpperCase());
+      }
+      
+      // Execute shortcut
+      await robot.keyboard.pressKey(...keyCombo);
+      await robot.keyboard.releaseKey(...keyCombo);
       
       return {
         content: [{

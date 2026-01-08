@@ -3,7 +3,7 @@ import { SkillStorage } from "./storage.js";
 
 export class SkillRecorder {
   private traces = new Map<string, ExecutionTrace>();
-  private storage = new SkillStorage();
+  public storage = new SkillStorage(); // Made public for drift tracking
 
   startTrace(traceId: string) {
     this.traces.set(traceId, {
@@ -11,11 +11,15 @@ export class SkillRecorder {
       steps: [],
       outcome: 'success'
     });
+    console.log(`📝 Started trace: ${traceId}`);
   }
 
   recordStep(traceId: string, tool: string, success: boolean, durationMs: number, params?: any) {
     const trace = this.traces.get(traceId);
-    if (!trace) return;
+    if (!trace) {
+      console.warn(`⚠️  Trace ${traceId} not found, cannot record step`);
+      return;
+    }
 
     trace.steps.push({
       tool,
@@ -24,11 +28,22 @@ export class SkillRecorder {
       success,
       params
     });
+
+    console.log(`  📌 Recorded: ${tool} (${success ? '✅' : '❌'}, ${durationMs}ms)`);
   }
 
   async finalizeTrace(traceId: string, outcome: ExecutionTrace['outcome']) {
     const trace = this.traces.get(traceId);
-    if (!trace) return;
+    if (!trace) {
+      console.warn(`⚠️  Trace ${traceId} not found, cannot finalize`);
+      return;
+    }
+
+    if (trace.steps.length === 0) {
+      console.log(`⚠️  Trace ${traceId} has no steps, skipping skill creation`);
+      this.traces.delete(traceId);
+      return;
+    }
 
     trace.outcome = outcome;
 
@@ -38,7 +53,8 @@ export class SkillRecorder {
     // 1. Match existing skill
     for (const skill of skills) {
       const similarity = this.computeSimilarity(skill, trace);
-      if (similarity > 0.7) { // TODO: Make threshold configurable
+      if (similarity > 0.7) {
+        console.log(`🔗 Matched existing skill: ${skill.skillId} (similarity: ${similarity.toFixed(2)})`);
         skillToProcess = skill;
         break;
       }
@@ -47,8 +63,12 @@ export class SkillRecorder {
     // 2. Create if no match, otherwise reinforce
     if (!skillToProcess) {
       skillToProcess = this._createNewSkill(trace);
+      console.log(`✨ Created new skill: ${skillToProcess.skillId}`);
+      console.log(`   Description: ${skillToProcess.description}`);
     } else {
       this._reinforceSkill(skillToProcess, trace);
+      console.log(`💪 Reinforced skill: ${skillToProcess.skillId}`);
+      console.log(`   Confidence: ${skillToProcess.confidence.toFixed(2)}, Executions: ${skillToProcess.totalExecutions}`);
     }
     
     // 3. Save
@@ -105,32 +125,45 @@ export class SkillRecorder {
     const outcomeScore = trace.outcome === 'success' ? 1 : 0;
     skill.confidence = skill.confidence * (1 - alpha) + outcomeScore * alpha;
 
-    // This simplistic node matching only works if a tool is used once per skill
-    for (const step of trace.steps) {
-        const node = skill.nodes.find(n => n.tool === step.tool);
-        if (node) {
-            const total = node.successCount + node.failureCount;
-            node.avgDurationMs = (node.avgDurationMs * total + step.durationMs) / (total + 1);
-            if(step.success) node.successCount++; else node.failureCount++;
-        }
+    // Build a mapping of tool sequence position for better matching
+    const traceSequence = trace.steps.map(s => s.tool);
+    const skillSequence = skill.nodes.map(n => n.tool);
+
+    // Match steps by position in sequence (handles repeated tools)
+    for (let i = 0; i < trace.steps.length; i++) {
+      const step = trace.steps[i];
+      
+      // Find node by position if sequences match
+      if (i < skill.nodes.length && skillSequence[i] === step.tool) {
+        const node = skill.nodes[i];
+        const total = node.successCount + node.failureCount;
+        node.avgDurationMs = (node.avgDurationMs * total + step.durationMs) / (total + 1);
+        if (step.success) node.successCount++; 
+        else node.failureCount++;
+      }
     }
 
+    // Reinforce edges
     for (let i = 0; i < trace.steps.length - 1; i++) {
-      const fromTool = trace.steps[i].tool;
-      const toTool = trace.steps[i+1].tool;
+      const fromIndex = i;
+      const toIndex = i + 1;
 
-      // This simplistic edge matching only works if a tool is used once per skill
-      const edge = skill.edges.find(e => e.from.startsWith(fromTool) && e.to.startsWith(toTool));
+      if (fromIndex < skill.nodes.length && toIndex < skill.nodes.length) {
+        const fromNodeId = skill.nodes[fromIndex].id;
+        const toNodeId = skill.nodes[toIndex].id;
 
-      if (edge) {
-        const success = trace.steps[i].success && trace.steps[i+1].success;
-        const newSuccessRate = success ? 1 : 0;
-        
-        edge.weight++;
-        edge.successRate = edge.successRate * (1 - alpha) + newSuccessRate * alpha;
+        const edge = skill.edges.find(e => e.from === fromNodeId && e.to === toNodeId);
 
-        const transitionMs = trace.steps[i + 1].timestamp - trace.steps[i].timestamp;
-        edge.avgTransitionMs = (edge.avgTransitionMs * (edge.weight - 1) + transitionMs) / edge.weight;
+        if (edge) {
+          const success = trace.steps[i].success && trace.steps[i + 1].success;
+          const newSuccessRate = success ? 1 : 0;
+          
+          edge.weight++;
+          edge.successRate = edge.successRate * (1 - alpha) + newSuccessRate * alpha;
+
+          const transitionMs = trace.steps[i + 1].timestamp - trace.steps[i].timestamp;
+          edge.avgTransitionMs = (edge.avgTransitionMs * (edge.weight - 1) + transitionMs) / edge.weight;
+        }
       }
     }
   }
@@ -139,6 +172,7 @@ export class SkillRecorder {
     const skillTools = skill.nodes.map(n => n.tool);
     const traceTools = trace.steps.map(s => s.tool);
 
+    // Must be same length for similarity match
     if (skillTools.length !== traceTools.length) return 0;
 
     let matches = 0;
