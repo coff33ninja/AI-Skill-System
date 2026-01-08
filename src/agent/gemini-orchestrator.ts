@@ -189,10 +189,10 @@ Stop immediately if uncertain.
         // Convert to Gemini format
         const geminiTools = this.convertMCPToolsToGemini(mcpTools);
 
-        this.currentModel = genAI.getGenerativeModel({
-          model: TEXT_MODEL, // Use text model for generateContent API
-          tools: geminiTools.length > 0 ? [{ functionDeclarations: geminiTools }] : undefined,
-          systemInstruction: `
+      this.currentModel = genAI.getGenerativeModel({
+        model: "gemini-1.5-pro",
+        tools: tools as any,
+        systemInstruction: `
 You are an AI agent that controls computers through MCP tools.
 RULES:
 1. Always call control_enable before attempting actions

@@ -4,15 +4,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import screenshot from "screenshot-desktop";
 
-// Optional dependency - import with better error handling
-let robot: any = null;
-let robotAvailable = false;
-
+// Optional dependency
+let robot: any;
 try {
-  const nutjs = await import("@nut-tree-fork/nut-js");
-  robot = nutjs;
-  robotAvailable = true;
-  console.error("✅ nut-js loaded successfully");
+  // @ts-ignore
+  robot = (await import("nut-js")).default;
 } catch (e) {
   console.error("⚠️  nut-js is not available. Install with: npm install @nut-tree-fork/nut-js");
   console.error("   Computer control tools (mouse, keyboard) will be disabled.");
