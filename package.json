@@ -1,0 +1,31 @@
+{
+  "name": "ai-skill-system",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "mcp": "tsx src/mcp/computer-control-server.ts",
+    "agent": "tsx src/agent/gemini-orchestrator.ts",
+    "mesh": "tsx src/mcp/mesh-node.ts",
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "viz": "open src/viz/drift-viewer.html"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "ws": "^8.18.0",
+    "zod": "^3.24.1",
+    "@nut-tree-fork/nut-js": "^4.2.6",
+    "screenshot-desktop": "^1.15.0"
+  },
+  "optionalDependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/screenshot-desktop": "^1.15.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
