@@ -102,22 +102,23 @@ export class GeminiLiveClient {
 
   /**
    * Send initial setup message
+   * Note: Gemini Live API uses snake_case for all config properties
    */
   private sendSetup(): void {
     const setupMessage = {
       setup: {
         model: this.config.model,
-        generationConfig: {
-          responseModalities: ["audio"],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: this.config.voiceName
+        generation_config: {
+          response_modalities: ["AUDIO"],
+          speech_config: {
+            voice_config: {
+              prebuilt_voice_config: {
+                voice_name: this.config.voiceName
               }
             }
           }
         },
-        systemInstruction: this.config.systemInstruction ? {
+        system_instruction: this.config.systemInstruction ? {
           parts: [{ text: this.config.systemInstruction }]
         } : undefined
       }
@@ -198,11 +199,11 @@ export class GeminiLiveClient {
     }
 
     this.send({
-      realtimeInput: {
-        audio: {
-          mimeType: "audio/pcm;rate=16000",
+      realtime_input: {
+        media_chunks: [{
+          mime_type: "audio/pcm",
           data: audioData
-        }
+        }]
       }
     });
   }
@@ -216,12 +217,12 @@ export class GeminiLiveClient {
     }
 
     this.send({
-      clientContent: {
+      client_content: {
         turns: [{
           role: "user",
           parts: [{ text }]
         }],
-        turnComplete: endTurn
+        turn_complete: endTurn
       }
     });
   }
@@ -231,8 +232,8 @@ export class GeminiLiveClient {
    */
   sendToolResponse(functionResponses: Array<{ name: string; response: any }>): void {
     this.send({
-      toolResponse: {
-        functionResponses: functionResponses.map(fr => ({
+      tool_response: {
+        function_responses: functionResponses.map(fr => ({
           name: fr.name,
           response: fr.response
         }))

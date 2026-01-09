@@ -29,104 +29,89 @@ async function bootstrap() {
     console.log("ℹ️  Mesh Node disabled (set ENABLE_MESH=true to enable)");
   }
 
-  // 3. Initialize Orchestrator
-  const useLiveMode = process.env.ENABLE_LIVE === "true";
-  const agent = new GeminiOrchestrator(keys, { useLiveMode });
+  // 3. Determine mode from env: "voice" (hands-free), "text" (keyboard), or "hybrid" (both)
+  const mode = (process.env.MODE || "text").toLowerCase() as "voice" | "text" | "hybrid";
+  const useVoice = mode === "voice" || mode === "hybrid";
   
-  // 4. Connect to local Control Server
+  console.log(`📋 Mode: ${mode.toUpperCase()}`);
+
+  // 4. Initialize Orchestrator
+  const agent = new GeminiOrchestrator(keys, { useLiveMode: useVoice });
+  
+  // 5. Connect to local Control Server
   console.log("🔌 Connecting to MCP server...");
   await agent.connectMCP("node", ["src/mcp/computer-control-server.ts"]);
 
-  // 5. Connect to Live API if enabled (for TTS/STT)
-  if (useLiveMode) {
-    console.log("🎤 Connecting to Gemini Live API (TTS/STT)...");
+  // 6. Voice mode: Connect Live API and start listening automatically
+  if (useVoice) {
+    console.log("🎤 Connecting to Gemini Live API...");
     try {
       await agent.connectLive();
-      console.log("✅ Live API connected - voice mode enabled");
+      agent.startListening();
+      console.log("✅ Voice mode active - just speak, no typing needed");
     } catch (err) {
-      console.error("⚠️  Live API connection failed:", err instanceof Error ? err.message : err);
-      console.log("   Falling back to text-only mode");
+      console.error("⚠️  Voice connection failed:", err instanceof Error ? err.message : err);
+      if (mode === "voice") {
+        console.log("❌ Voice-only mode failed. Set MODE=hybrid or MODE=text in .env");
+        process.exit(1);
+      }
+      console.log("   Continuing with text-only mode");
     }
   }
 
-  console.log("\n🧠 System Ready. Type commands (or 'exit' to quit):");
-  console.log("   Commands: /live (toggle voice), /speak <text>, exit\n");
-  
-  // 6. Interactive command loop with readline
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: '> '
-  });
-
-  rl.prompt();
-
-  rl.on('line', async (input: string) => {
-    const command = input.trim();
+  // 7. Text/Hybrid mode: Start readline interface
+  if (mode === "text" || mode === "hybrid") {
+    console.log("\n🧠 System Ready. Type commands (or 'exit' to quit):\n");
     
-    if (!command) {
-      rl.prompt();
-      return;
-    }
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: '> '
+    });
 
-    // Handle special commands
-    if (command.toLowerCase() === 'exit' || command.toLowerCase() === 'quit') {
-      console.log("👋 Shutting down...");
-      agent.disconnectLive();
-      rl.close();
-      process.exit(0);
-    }
-
-    // Toggle live mode
-    if (command.toLowerCase() === '/live') {
-      if (agent.isLiveConnected) {
-        agent.disconnectLive();
-        console.log("🔇 Live mode disconnected");
-      } else {
-        try {
-          await agent.connectLive();
-          console.log("🎤 Live mode connected");
-        } catch (err) {
-          console.error("❌ Failed to connect live mode:", err instanceof Error ? err.message : err);
-        }
-      }
-      rl.prompt();
-      return;
-    }
-
-    // Speak text via Live API (TTS)
-    if (command.toLowerCase().startsWith('/speak ')) {
-      const text = command.slice(7).trim();
-      if (!agent.isLiveConnected) {
-        console.log("⚠️  Live mode not connected. Use /live to connect first.");
-      } else {
-        try {
-          await agent.speakLive(text);
-          console.log("🔊 Sent to Live API for speech");
-        } catch (err) {
-          console.error("❌ Speech error:", err instanceof Error ? err.message : err);
-        }
-      }
-      rl.prompt();
-      return;
-    }
-
-    // Regular command execution (text mode with tools)
-    try {
-      await agent.execute(command);
-    } catch (err) {
-      console.error("\n❌ Execution error:", err instanceof Error ? err.message : err);
-    }
-
-    console.log(); // blank line
     rl.prompt();
-  });
 
-  rl.on('close', () => {
-    agent.disconnectLive();
-    console.log("\n👋 Goodbye!");
-    process.exit(0);
-  });
+    rl.on('line', async (input: string) => {
+      const command = input.trim();
+      
+      if (!command) {
+        rl.prompt();
+        return;
+      }
+
+      if (command.toLowerCase() === 'exit' || command.toLowerCase() === 'quit') {
+        console.log("👋 Shutting down...");
+        agent.disconnectLive();
+        rl.close();
+        process.exit(0);
+      }
+
+      // Execute command
+      try {
+        await agent.execute(command);
+      } catch (err) {
+        console.error("\n❌ Error:", err instanceof Error ? err.message : err);
+      }
+
+      console.log();
+      rl.prompt();
+    });
+
+    rl.on('close', () => {
+      agent.disconnectLive();
+      console.log("\n👋 Goodbye!");
+      process.exit(0);
+    });
+  } else {
+    // Voice-only mode: just keep running
+    console.log("\n🧠 Voice-only mode active. Speak to control. Press Ctrl+C to exit.\n");
+    
+    process.on('SIGINT', () => {
+      console.log("\n👋 Shutting down...");
+      agent.disconnectLive();
+      process.exit(0);
+    });
+  }
 }
 
 bootstrap().catch((err) => {

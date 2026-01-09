@@ -6,6 +6,7 @@ import { SkillRecorder } from "../memory/recorder.js";
 import { DriftTracker } from "../memory/drift-tracker.js";
 import { GeminiLiveClient, LiveEvent } from "./gemini-live-client.js";
 import { AudioPlayer } from "./audio-player.js";
+import { MicCapture } from "./mic-capture.js";
 
 // Model configuration - Current Gemini models (as of January 2026)
 // See: https://ai.google.dev/gemini-api/docs/models
@@ -36,6 +37,8 @@ export class GeminiOrchestrator {
   private liveClient?: GeminiLiveClient;
   private useLiveMode: boolean = false;
   private audioPlayer: AudioPlayer;
+  private micCapture: MicCapture;
+  private isListening: boolean = false;
 
   constructor(apiKeys: string[], options?: { useLiveMode?: boolean }) {
     this.keyPool = new GeminiKeyPool(apiKeys);
@@ -43,6 +46,7 @@ export class GeminiOrchestrator {
     this.driftTracker = new DriftTracker();
     this.useLiveMode = options?.useLiveMode ?? false;
     this.audioPlayer = new AudioPlayer();
+    this.micCapture = new MicCapture();
   }
 
   /**
@@ -87,6 +91,8 @@ Stop immediately if uncertain.
 
     this.liveClient.on("turnComplete", (_event: LiveEvent) => {
       console.log("✅ Turn complete");
+      // Flush any remaining buffered audio
+      this.audioPlayer.flush();
     });
 
     this.liveClient.on("error", (event: LiveEvent) => {
@@ -153,9 +159,70 @@ Stop immediately if uncertain.
    * Disconnect from Live API
    */
   disconnectLive(): void {
+    this.stopListening();
     this.liveClient?.disconnect();
     this.liveClient = undefined;
     this.audioPlayer.stop();
+  }
+
+  /**
+   * Start continuous microphone listening (hands-free mode)
+   * Audio is streamed directly to Gemini Live API for STT
+   */
+  startListening(): void {
+    if (!this.liveClient?.connected) {
+      console.log("⚠️  Live API not connected. Connect first with connectLive()");
+      return;
+    }
+
+    if (this.isListening) {
+      console.log("🎤 Already listening");
+      return;
+    }
+
+    this.micCapture.start(
+      // On audio chunk - send to Gemini Live
+      (base64Audio) => {
+        if (this.liveClient?.connected) {
+          this.liveClient.sendAudio(base64Audio);
+        }
+      },
+      // On error
+      (error) => {
+        console.error("🎤 Mic error:", error.message);
+        this.isListening = false;
+      }
+    );
+
+    this.isListening = true;
+    console.log("🎤 Listening... (speak naturally, hands-free mode active)");
+  }
+
+  /**
+   * Stop microphone listening
+   */
+  stopListening(): void {
+    if (this.isListening) {
+      this.micCapture.stop();
+      this.isListening = false;
+    }
+  }
+
+  /**
+   * Toggle listening on/off
+   */
+  toggleListening(): boolean {
+    if (this.isListening) {
+      this.stopListening();
+      return false;
+    } else {
+      this.startListening();
+      return true;
+    }
+  }
+
+  get listening(): boolean {
+    return this.isListening;
   }
 
   get isLiveConnected(): boolean {

@@ -1,16 +1,26 @@
-import { spawn } from "child_process";
+import { spawn, ChildProcess } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
 /**
- * Simple audio player for PCM audio data
+ * Audio player for PCM audio data with buffering for smooth playback
  * Uses platform-specific tools to play audio
+ * Accumulates small chunks before playing to avoid choppy audio
  */
 export class AudioPlayer {
   private tempDir: string;
   private isPlaying = false;
   private queue: Buffer[] = [];
+  
+  // Buffer accumulator for smoother playback (like AI-Resident)
+  private pendingData: Buffer[] = [];
+  private minBufferBytes = 48000; // ~1 second at 24kHz 16-bit mono (24000 samples * 2 bytes)
+  private flushTimeoutId: NodeJS.Timeout | null = null;
+  private flushDelayMs = 100; // Small delay to accumulate chunks
+  
+  // Active playback process for interruption
+  private activeProcess: ChildProcess | null = null;
 
   constructor() {
     this.tempDir = path.join(os.tmpdir(), "gemini-audio");
@@ -21,15 +31,60 @@ export class AudioPlayer {
 
   /**
    * Play PCM audio data (24kHz, 16-bit, mono)
+   * Accumulates small chunks for smoother playback
    * @param base64Data Base64 encoded PCM audio
    */
   async play(base64Data: string): Promise<void> {
     const buffer = Buffer.from(base64Data, "base64");
-    this.queue.push(buffer);
+    this.pendingData.push(buffer);
+    
+    // Calculate total pending bytes
+    const totalPending = this.pendingData.reduce((sum, b) => sum + b.length, 0);
+    
+    // Clear any existing flush timeout
+    if (this.flushTimeoutId) {
+      clearTimeout(this.flushTimeoutId);
+      this.flushTimeoutId = null;
+    }
+    
+    // If we have enough data, flush immediately
+    if (totalPending >= this.minBufferBytes) {
+      this.flushPendingToQueue();
+    } else {
+      // Otherwise, set a small delay to accumulate more chunks
+      this.flushTimeoutId = setTimeout(() => {
+        this.flushPendingToQueue();
+      }, this.flushDelayMs);
+    }
+  }
+  
+  /**
+   * Flush accumulated audio data to the playback queue
+   */
+  private flushPendingToQueue(): void {
+    if (this.pendingData.length === 0) return;
+    
+    // Combine all pending buffers
+    const combined = Buffer.concat(this.pendingData);
+    this.pendingData = [];
+    
+    if (this.flushTimeoutId) {
+      clearTimeout(this.flushTimeoutId);
+      this.flushTimeoutId = null;
+    }
+    
+    this.queue.push(combined);
     
     if (!this.isPlaying) {
-      await this.processQueue();
+      this.processQueue();
     }
+  }
+  
+  /**
+   * Force flush any remaining buffered audio (call on turn complete)
+   */
+  flush(): void {
+    this.flushPendingToQueue();
   }
 
   private async processQueue(): Promise<void> {
@@ -92,8 +147,11 @@ export class AudioPlayer {
         "-autoexit",
         tempFile
       ], { stdio: "ignore" });
+      
+      this.activeProcess = ffplay;
 
       ffplay.on("close", (code) => {
+        this.activeProcess = null;
         if (code === 0) {
           resolve();
         } else {
@@ -103,6 +161,7 @@ export class AudioPlayer {
       });
 
       ffplay.on("error", () => {
+        this.activeProcess = null;
         // ffplay not found, use fallback
         this.convertAndPlayWindows(buffer, wavFile).then(resolve).catch(reject);
       });
@@ -202,10 +261,24 @@ export class AudioPlayer {
   }
 
   /**
-   * Stop all audio playback
+   * Stop all audio playback and clear buffers
    */
   stop(): void {
     this.queue = [];
+    this.pendingData = [];
     this.isPlaying = false;
+    
+    if (this.flushTimeoutId) {
+      clearTimeout(this.flushTimeoutId);
+      this.flushTimeoutId = null;
+    }
+    
+    // Kill active playback process if any
+    if (this.activeProcess) {
+      try {
+        this.activeProcess.kill();
+      } catch {}
+      this.activeProcess = null;
+    }
   }
 }
