@@ -1364,6 +1364,41 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       description: "List all saved context snapshots",
       inputSchema: { type: "object", properties: {} }
     },
+    // Phase 8: Advanced AI Enhancements
+    {
+      name: "screen_find_element",
+      description: "Find UI element by natural language description (e.g., 'the red button', 'login field', 'submit'). Uses OCR + color analysis to locate elements.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          description: { type: "string", description: "Natural language description of what to find" },
+          clickAfterFind: { type: "boolean", description: "Click the element after finding it" }
+        },
+        required: ["description"]
+      }
+    },
+    {
+      name: "skill_generalize",
+      description: "Adapt a learned skill to work in a similar but different context (e.g., 'copy file' skill adapted for different file manager)",
+      inputSchema: {
+        type: "object",
+        properties: {
+          skillId: { type: "string", description: "ID of the skill to generalize" },
+          newContext: { type: "string", description: "Description of the new context to adapt to" }
+        },
+        required: ["skillId", "newContext"]
+      }
+    },
+    {
+      name: "suggest_proactive",
+      description: "Analyze current screen and context to proactively suggest helpful actions the user might want to take",
+      inputSchema: {
+        type: "object",
+        properties: {
+          goal: { type: "string", description: "Optional: user's current goal to focus suggestions" }
+        }
+      }
+    },
     {
       name: "skills_list",
       description: "List all learned skills with their confidence and execution count",
@@ -4678,6 +4713,334 @@ foreach ($el in $elements) {
       }
       
       return { content: [{ type: "text", text: JSON.stringify(contexts, null, 2) }] };
+    }
+
+    // Phase 8: Advanced AI Enhancements
+    case "screen_find_element": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { description, clickAfterFind = false } = args as { description: string; clickAfterFind?: boolean };
+      
+      // Take screenshot for analysis
+      const img = await screenshot({ format: "png" });
+      
+      // Use OCR to find text elements
+      let ocrResults: any[] = [];
+      try {
+        const Tesseract = await import("tesseract.js");
+        const result = await Tesseract.recognize(img, 'eng');
+        // Access words from the result - Tesseract returns Page with words array
+        ocrResults = (result.data as any).words || [];
+      } catch {}
+      
+      // Parse description for hints
+      const descLower = description.toLowerCase();
+      const colorHints = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'white', 'black', 'gray', 'grey'];
+      const typeHints = ['button', 'link', 'field', 'input', 'text', 'icon', 'image', 'checkbox', 'menu'];
+      
+      const mentionedColors = colorHints.filter(c => descLower.includes(c));
+      const mentionedTypes = typeHints.filter(t => descLower.includes(t));
+      
+      // Extract key words from description (remove common words)
+      const stopWords = ['the', 'a', 'an', 'to', 'in', 'on', 'at', 'for', 'of', 'with', 'click', 'find', 'locate'];
+      const keywords = description.toLowerCase()
+        .split(/\s+/)
+        .filter(w => !stopWords.includes(w) && !colorHints.includes(w) && !typeHints.includes(w) && w.length > 2);
+      
+      // Search OCR results for matching text
+      let bestMatch: { text: string; x: number; y: number; confidence: number } | null = null;
+      
+      for (const word of ocrResults) {
+        const wordText = word.text.toLowerCase();
+        for (const keyword of keywords) {
+          if (wordText.includes(keyword) || keyword.includes(wordText)) {
+            const confidence = word.confidence / 100;
+            if (!bestMatch || confidence > bestMatch.confidence) {
+              bestMatch = {
+                text: word.text,
+                x: Math.round(word.bbox.x0 + (word.bbox.x1 - word.bbox.x0) / 2),
+                y: Math.round(word.bbox.y0 + (word.bbox.y1 - word.bbox.y0) / 2),
+                confidence
+              };
+            }
+          }
+        }
+      }
+      
+      // If color mentioned, try to find colored region
+      if (mentionedColors.length > 0 && !bestMatch) {
+        const sharp = (await import("sharp")).default;
+        const { data, info } = await sharp(img).raw().toBuffer({ resolveWithObject: true });
+        
+        const colorRanges: Record<string, { r: [number, number]; g: [number, number]; b: [number, number] }> = {
+          'red': { r: [180, 255], g: [0, 80], b: [0, 80] },
+          'blue': { r: [0, 80], g: [0, 80], b: [180, 255] },
+          'green': { r: [0, 80], g: [180, 255], b: [0, 80] },
+          'yellow': { r: [200, 255], g: [200, 255], b: [0, 80] },
+          'orange': { r: [200, 255], g: [100, 180], b: [0, 80] },
+          'purple': { r: [100, 200], g: [0, 80], b: [180, 255] },
+          'white': { r: [220, 255], g: [220, 255], b: [220, 255] },
+          'black': { r: [0, 35], g: [0, 35], b: [0, 35] }
+        };
+        
+        const targetColor = colorRanges[mentionedColors[0]];
+        if (targetColor) {
+          // Scan for colored pixels and find centroid
+          const matches: { x: number; y: number }[] = [];
+          for (let y = 0; y < info.height; y += 5) {
+            for (let x = 0; x < info.width; x += 5) {
+              const idx = (y * info.width + x) * info.channels;
+              const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+              
+              if (r >= targetColor.r[0] && r <= targetColor.r[1] &&
+                  g >= targetColor.g[0] && g <= targetColor.g[1] &&
+                  b >= targetColor.b[0] && b <= targetColor.b[1]) {
+                matches.push({ x, y });
+              }
+            }
+          }
+          
+          if (matches.length > 10) {
+            // Find centroid of colored region
+            const avgX = Math.round(matches.reduce((s, p) => s + p.x, 0) / matches.length);
+            const avgY = Math.round(matches.reduce((s, p) => s + p.y, 0) / matches.length);
+            bestMatch = { text: `${mentionedColors[0]} region`, x: avgX, y: avgY, confidence: 0.7 };
+          }
+        }
+      }
+      
+      if (!bestMatch) {
+        return { 
+          content: [{ 
+            type: "text", 
+            text: `Could not find element matching: "${description}". Try being more specific or use screen_find_text/screen_find_image.` 
+          }] 
+        };
+      }
+      
+      // Click if requested
+      if (clickAfterFind && robotAvailable) {
+        await mouse.setPosition({ x: bestMatch.x, y: bestMatch.y });
+        await new Promise(r => setTimeout(r, 50));
+        await mouse.leftClick();
+        return { 
+          content: [{ 
+            type: "text", 
+            text: `Found "${bestMatch.text}" at (${bestMatch.x}, ${bestMatch.y}) with ${Math.round(bestMatch.confidence * 100)}% confidence and clicked it.` 
+          }] 
+        };
+      }
+      
+      return { 
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify({
+            found: bestMatch.text,
+            x: bestMatch.x,
+            y: bestMatch.y,
+            confidence: Math.round(bestMatch.confidence * 100) + '%',
+            hint: "Use mouse_click or set clickAfterFind:true to click"
+          }, null, 2)
+        }] 
+      };
+    }
+
+    case "skill_generalize": {
+      const { skillId, newContext } = args as { skillId: string; newContext: string };
+      
+      const skills = await skillStorage.loadSkills();
+      const skill = skills.find(s => s.skillId === skillId);
+      
+      if (!skill) {
+        return { content: [{ type: "text", text: `Skill not found: ${skillId}` }] };
+      }
+      
+      // Analyze the skill's nodes and create a generalized version
+      // SkillGraph uses nodes (tools) and edges (transitions), not steps
+      const generalizedNodes = skill.nodes.map((node: any) => ({
+        ...node,
+        _generalized: true,
+        _needsRedetection: true // Mark for re-detection in new context
+      }));
+      
+      // Create new skill variant
+      const newSkillId = `${skillId}_generalized_${Date.now()}`;
+      const newSkill: any = {
+        ...skill,
+        skillId: newSkillId,
+        description: `${skill.description} (adapted for: ${newContext})`,
+        nodes: generalizedNodes,
+        edges: skill.edges, // Keep same transition patterns
+        confidence: skill.confidence * 0.7, // Lower confidence for generalized version
+        totalExecutions: 0,
+        tags: [...skill.tags, 'generalized'],
+        createdAt: Date.now(),
+        lastUsed: Date.now()
+      };
+      
+      // Save the new skill
+      await skillStorage.saveSkill(newSkill);
+      
+      return { 
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify({
+            originalSkill: skillId,
+            newSkillId,
+            newContext,
+            nodesGeneralized: generalizedNodes.length,
+            note: "Nodes marked for re-detection. Run the skill to adapt it to the new context."
+          }, null, 2)
+        }] 
+      };
+    }
+
+    case "suggest_proactive": {
+      const { goal } = args as { goal?: string };
+      
+      const suggestions: { action: string; reason: string; tool: string; priority: 'high' | 'medium' | 'low' }[] = [];
+      
+      // Gather current context
+      let activeWindowTitle = '';
+      let mousePos = { x: 0, y: 0 };
+      
+      if (robotAvailable) {
+        mousePos = await mouse.getPosition();
+        
+        if (getActiveWindow) {
+          try {
+            const win = await getActiveWindow();
+            activeWindowTitle = await win.title;
+          } catch {}
+        }
+      }
+      
+      // Context-based suggestions
+      const titleLower = activeWindowTitle.toLowerCase();
+      
+      // Browser suggestions
+      if (titleLower.includes('chrome') || titleLower.includes('firefox') || titleLower.includes('edge') || titleLower.includes('browser')) {
+        suggestions.push({
+          action: "Take a screenshot of the current webpage",
+          reason: "Browser detected - capture current state for reference",
+          tool: "screen_observe",
+          priority: "low"
+        });
+        
+        if (goal?.toLowerCase().includes('form') || goal?.toLowerCase().includes('fill')) {
+          suggestions.push({
+            action: "Use OCR to find form fields",
+            reason: "Goal mentions forms - locate input fields first",
+            tool: "screen_find_text",
+            priority: "high"
+          });
+        }
+      }
+      
+      // File explorer suggestions
+      if (titleLower.includes('explorer') || titleLower.includes('finder') || titleLower.includes('files')) {
+        suggestions.push({
+          action: "List visible files using OCR",
+          reason: "File manager detected - read visible content",
+          tool: "screen_read_all_text",
+          priority: "medium"
+        });
+      }
+      
+      // Code editor suggestions
+      if (titleLower.includes('code') || titleLower.includes('studio') || titleLower.includes('vim') || titleLower.includes('sublime')) {
+        suggestions.push({
+          action: "Save current file",
+          reason: "Code editor detected - ensure work is saved",
+          tool: "keyboard_shortcut",
+          priority: "medium"
+        });
+      }
+      
+      // Terminal suggestions
+      if (titleLower.includes('terminal') || titleLower.includes('cmd') || titleLower.includes('powershell') || titleLower.includes('bash')) {
+        suggestions.push({
+          action: "Read terminal output",
+          reason: "Terminal detected - capture command results",
+          tool: "screen_read_all_text",
+          priority: "medium"
+        });
+      }
+      
+      // Goal-based suggestions
+      if (goal) {
+        const goalLower = goal.toLowerCase();
+        
+        if (goalLower.includes('copy') || goalLower.includes('paste')) {
+          suggestions.push({
+            action: "Check clipboard content",
+            reason: "Goal involves clipboard operations",
+            tool: "clipboard_read",
+            priority: "high"
+          });
+        }
+        
+        if (goalLower.includes('click') || goalLower.includes('button')) {
+          suggestions.push({
+            action: "Find clickable elements on screen",
+            reason: "Goal involves clicking - locate targets first",
+            tool: "screen_find_clickable",
+            priority: "high"
+          });
+        }
+        
+        if (goalLower.includes('type') || goalLower.includes('enter') || goalLower.includes('write')) {
+          suggestions.push({
+            action: "Ensure focus is on correct input field",
+            reason: "Goal involves typing - verify target first",
+            tool: "ui_element_at",
+            priority: "high"
+          });
+        }
+        
+        if (goalLower.includes('wait') || goalLower.includes('load')) {
+          suggestions.push({
+            action: "Wait for screen to change",
+            reason: "Goal involves waiting - monitor for changes",
+            tool: "screen_wait_for_change",
+            priority: "high"
+          });
+        }
+      }
+      
+      // General suggestions if nothing specific
+      if (suggestions.length === 0) {
+        suggestions.push({
+          action: "Take a screenshot to analyze current state",
+          reason: "No specific context detected - gather information first",
+          tool: "screen_observe",
+          priority: "medium"
+        });
+        suggestions.push({
+          action: "Get active window information",
+          reason: "Understand current application context",
+          tool: "window_active",
+          priority: "medium"
+        });
+      }
+      
+      // Sort by priority
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+      
+      return { 
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify({
+            context: {
+              activeWindow: activeWindowTitle || 'unknown',
+              mousePosition: mousePos,
+              goal: goal || 'none specified'
+            },
+            suggestions: suggestions.slice(0, 5) // Top 5 suggestions
+          }, null, 2)
+        }] 
+      };
     }
 
     case "skills_list": {

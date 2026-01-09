@@ -2,7 +2,7 @@
 
 ## ✅ Completed (v1.0)
 
-### Core Tools (125 total)
+### Core Tools (128 total)
 - [x] Control permission system (enable/disable/status)
 - [x] Screen capture (screenshot, region capture, color analysis, dominant colors)
 - [x] Screen info (multi-monitor support)
@@ -127,8 +127,28 @@
 - [x] `browser_get_html` - Get page/element HTML
 - [x] `browser_wait_for` - Wait for element to appear
 - [x] Mesh networking: `mesh_connect`, `mesh_disconnect`, `mesh_list_connections`, `mesh_list_tools`, `mesh_execute`, `mesh_screenshot`
-- [ ] Mesh network improvements (auto-discovery, encryption)
-- [ ] Remote screen streaming
+### Phase 7b: Remote Screen Streaming
+- [ ] `mesh_stream_start` - Start streaming screen from remote node (WebSocket binary frames)
+- [ ] `mesh_stream_stop` - Stop remote screen stream
+- [ ] `mesh_stream_quality` - Adjust stream quality/FPS (low bandwidth mode)
+- [ ] MJPEG streaming - Simple HTTP endpoint for browser viewing
+- [ ] WebRTC streaming - Low-latency P2P video for real-time control
+- [ ] Delta compression - Only send changed screen regions
+- [ ] Audio streaming - Stream system audio from remote node
+
+### Phase 7c: Mesh Network Improvements
+Current: Basic WebSocket with token auth, manual host:port, 24h expiring tokens
+
+- [ ] `mesh_heartbeat` - Heartbeat/keepalive to detect dead connections faster
+- [ ] `mesh_broadcast` - Execute same tool on multiple nodes at once
+- [ ] `mesh_health` - Node health monitoring (latency, uptime, CPU/memory)
+- [ ] `mesh_discover` - Auto-discovery via mDNS/Bonjour on local network
+- [ ] `mesh_permissions` - Role-based permissions (limit which tools remote clients can execute)
+- [ ] `mesh_trust_permanent` - Persistent pairing (remember trusted machines across restarts)
+- [ ] TLS/WSS encryption with certificate generation
+- [ ] Connection pooling for efficient reuse
+- [ ] NAT traversal (STUN/TURN or relay server) for firewall piercing
+- [ ] Mesh topology - allow nodes to relay to other nodes (not just hub-spoke)
 
 ### Phase 8: AI Enhancements
 - [x] `screen_describe` - Get structured description of screen state
@@ -140,9 +160,9 @@
 - [x] `context_save` - Save current context (mouse, window) for later
 - [x] `context_restore` - Restore a saved context
 - [x] `context_list` - List saved context snapshots
-- [ ] Natural language to coordinates ("click the red button") - requires vision model
-- [ ] Skill generalization (adapt learned skills to similar tasks)
-- [ ] Proactive suggestions based on context
+- [x] `screen_find_element` - Natural language to coordinates ("click the red button") via OCR + color analysis
+- [x] `skill_generalize` - Adapt learned skills to similar tasks (new context)
+- [x] `suggest_proactive` - Proactive suggestions based on current screen/window context
 
 ### Phase 9: Safety & Accessibility
 - [x] `action_history` - Get history of recent actions (audit log)
