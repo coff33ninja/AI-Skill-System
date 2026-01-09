@@ -2,7 +2,7 @@
 
 ## ✅ Completed (v1.0)
 
-### Core Tools (119 total)
+### Core Tools (125 total)
 - [x] Control permission system (enable/disable/status)
 - [x] Screen capture (screenshot, region capture, color analysis, dominant colors)
 - [x] Screen info (multi-monitor support)
@@ -126,9 +126,9 @@
 - [x] `browser_get_text` - Get element text
 - [x] `browser_get_html` - Get page/element HTML
 - [x] `browser_wait_for` - Wait for element to appear
+- [x] Mesh networking: `mesh_connect`, `mesh_disconnect`, `mesh_list_connections`, `mesh_list_tools`, `mesh_execute`, `mesh_screenshot`
 - [ ] Mesh network improvements (auto-discovery, encryption)
 - [ ] Remote screen streaming
-- [ ] Multi-device orchestration (control multiple computers)
 
 ### Phase 8: AI Enhancements
 - [x] `screen_describe` - Get structured description of screen state

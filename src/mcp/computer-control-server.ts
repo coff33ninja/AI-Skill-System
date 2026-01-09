@@ -113,6 +113,10 @@ const contextSnapshots: Map<string, ContextSnapshot> = new Map();
 let browserWsUrl: string | null = null;
 const CDP_PORT = 9222;
 
+// Mesh networking state (multi-device control)
+import { MeshClient } from "./mesh-client.js";
+const meshConnections: Map<string, MeshClient> = new Map();
+
 // Helper: Get Chrome DevTools WebSocket URL
 async function getCdpTarget(): Promise<{ webSocketDebuggerUrl: string; id: string } | null> {
   try {
@@ -1210,6 +1214,71 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           timeoutMs: { type: "number", default: 10000 }
         },
         required: ["selector"]
+      }
+    },
+    // Phase 7: Mesh Networking (Multi-Device)
+    {
+      name: "mesh_connect",
+      description: "Connect to a remote mesh node to control another computer",
+      inputSchema: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "Remote host IP or hostname" },
+          port: { type: "number", default: 8080 },
+          token: { type: "string", description: "Authentication token" }
+        },
+        required: ["host", "token"]
+      }
+    },
+    {
+      name: "mesh_disconnect",
+      description: "Disconnect from a remote mesh node",
+      inputSchema: {
+        type: "object",
+        properties: {
+          host: { type: "string" }
+        },
+        required: ["host"]
+      }
+    },
+    {
+      name: "mesh_list_connections",
+      description: "List all active mesh connections to remote computers",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "mesh_list_tools",
+      description: "List available tools on a remote mesh node",
+      inputSchema: {
+        type: "object",
+        properties: {
+          host: { type: "string" }
+        },
+        required: ["host"]
+      }
+    },
+    {
+      name: "mesh_execute",
+      description: "Execute a tool on a remote mesh node",
+      inputSchema: {
+        type: "object",
+        properties: {
+          host: { type: "string", description: "Remote host to execute on" },
+          tool: { type: "string", description: "Tool name to execute" },
+          args: { type: "object", description: "Tool arguments" }
+        },
+        required: ["host", "tool"]
+      }
+    },
+    {
+      name: "mesh_screenshot",
+      description: "Take a screenshot from a remote mesh node",
+      inputSchema: {
+        type: "object",
+        properties: {
+          host: { type: "string" }
+        },
+        required: ["host"]
       }
     },
     // Phase 8: AI Enhancements
@@ -4083,6 +4152,144 @@ foreach ($el in $elements) {
       }
       
       return { content: [{ type: "text", text: `Timeout: ${selector} not found after ${timeoutMs}ms` }] };
+    }
+
+    // Phase 7: Mesh Networking
+    case "mesh_connect": {
+      const { host, port = 8080, token } = args as { host: string; port?: number; token: string };
+      
+      const key = `${host}:${port}`;
+      
+      if (meshConnections.has(key)) {
+        return { content: [{ type: "text", text: `Already connected to ${key}` }] };
+      }
+      
+      try {
+        const client = new MeshClient(host, port, token);
+        await client.connect();
+        meshConnections.set(key, client);
+        
+        // Set up disconnect handler
+        client.onClose(() => {
+          meshConnections.delete(key);
+          console.log(`🔌 Mesh connection to ${key} closed`);
+        });
+        
+        return { content: [{ type: "text", text: `🌐 Connected to mesh node: ${key}` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Failed to connect to ${key}: ${e instanceof Error ? e.message : String(e)}` }] };
+      }
+    }
+
+    case "mesh_disconnect": {
+      const { host } = args as { host: string };
+      
+      // Find connection by host (with or without port)
+      let key = host;
+      if (!meshConnections.has(key)) {
+        key = `${host}:8080`;
+      }
+      
+      const client = meshConnections.get(key);
+      if (!client) {
+        return { content: [{ type: "text", text: `Not connected to ${host}` }] };
+      }
+      
+      client.disconnect();
+      meshConnections.delete(key);
+      
+      return { content: [{ type: "text", text: `🔌 Disconnected from ${key}` }] };
+    }
+
+    case "mesh_list_connections": {
+      const connections = Array.from(meshConnections.entries()).map(([key, client]) => ({
+        host: key,
+        connected: client.connected
+      }));
+      
+      if (connections.length === 0) {
+        return { content: [{ type: "text", text: "No active mesh connections" }] };
+      }
+      
+      return { content: [{ type: "text", text: JSON.stringify(connections, null, 2) }] };
+    }
+
+    case "mesh_list_tools": {
+      const { host } = args as { host: string };
+      
+      let key = host;
+      if (!meshConnections.has(key)) {
+        key = `${host}:8080`;
+      }
+      
+      const client = meshConnections.get(key);
+      if (!client) {
+        return { content: [{ type: "text", text: `Not connected to ${host}. Use mesh_connect first.` }] };
+      }
+      
+      try {
+        const result = await client.listTools();
+        const toolNames = result.tools.map((t: any) => t.name);
+        return { content: [{ type: "text", text: `Tools on ${key}:\n${toolNames.join('\n')}` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Failed to list tools: ${e instanceof Error ? e.message : String(e)}` }] };
+      }
+    }
+
+    case "mesh_execute": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { host, tool, args: toolArgs = {} } = args as { host: string; tool: string; args?: Record<string, any> };
+      
+      let key = host;
+      if (!meshConnections.has(key)) {
+        key = `${host}:8080`;
+      }
+      
+      const client = meshConnections.get(key);
+      if (!client) {
+        return { content: [{ type: "text", text: `Not connected to ${host}. Use mesh_connect first.` }] };
+      }
+      
+      try {
+        const result = await client.callTool(tool, toolArgs);
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Remote execution failed: ${e instanceof Error ? e.message : String(e)}` }] };
+      }
+    }
+
+    case "mesh_screenshot": {
+      const { host } = args as { host: string };
+      
+      let key = host;
+      if (!meshConnections.has(key)) {
+        key = `${host}:8080`;
+      }
+      
+      const client = meshConnections.get(key);
+      if (!client) {
+        return { content: [{ type: "text", text: `Not connected to ${host}. Use mesh_connect first.` }] };
+      }
+      
+      try {
+        const result = await client.callTool('screen_observe', {});
+        
+        // Extract image from result
+        if (result?.result?.content?.[0]?.type === 'image') {
+          return {
+            content: [{
+              type: "image",
+              data: result.result.content[0].data,
+              mimeType: "image/png"
+            }]
+          };
+        }
+        
+        return { content: [{ type: "text", text: "Remote screenshot failed - unexpected response format" }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Remote screenshot failed: ${e instanceof Error ? e.message : String(e)}` }] };
+      }
     }
 
     // Phase 8: AI Enhancements
