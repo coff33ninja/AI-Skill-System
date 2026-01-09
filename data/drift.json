@@ -6,5 +6,29 @@
     "avgDurationMs": 71,
     "stepCount": 5,
     "deviationScore": 0
+  },
+  {
+    "skillId": "skill_1767946740580",
+    "timestamp": 1767946740595,
+    "confidence": 0.5,
+    "avgDurationMs": 1574.5,
+    "stepCount": 2,
+    "deviationScore": 0
+  },
+  {
+    "skillId": "skill_1767946772210",
+    "timestamp": 1767946772217,
+    "confidence": 0.5,
+    "avgDurationMs": 1081.5714285714287,
+    "stepCount": 7,
+    "deviationScore": 0
+  },
+  {
+    "skillId": "skill_1767946911464",
+    "timestamp": 1767946911792,
+    "confidence": 0.5,
+    "avgDurationMs": 318.85714285714283,
+    "stepCount": 7,
+    "deviationScore": 0
   }
 ]

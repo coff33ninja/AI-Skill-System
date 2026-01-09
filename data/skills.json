@@ -1177,5 +1177,262 @@
     "lastUsed": 1767939102758,
     "totalExecutions": 1,
     "confidence": 0.5
+  },
+  {
+    "skillId": "skill_1767946740580",
+    "description": "Sequence: control_enable → screen_observe",
+    "tags": [
+      "control",
+      "screenshot",
+      "successful"
+    ],
+    "nodes": [
+      {
+        "id": "control_enable_0",
+        "tool": "control_enable",
+        "avgDurationMs": 48,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "screen_observe_1",
+        "tool": "screen_observe",
+        "avgDurationMs": 3101,
+        "successCount": 1,
+        "failureCount": 0
+      }
+    ],
+    "edges": [
+      {
+        "from": "control_enable_0",
+        "to": "screen_observe_1",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 4029
+      }
+    ],
+    "createdAt": 1767946740581,
+    "lastUsed": 1767946740581,
+    "totalExecutions": 1,
+    "confidence": 0.5
+  },
+  {
+    "skillId": "skill_1767946772210",
+    "description": "Sequence: screen_observe → mouse_click → wait → keyboard_type → wait → keyboard_press → screen_observe",
+    "tags": [
+      "screenshot",
+      "mouse",
+      "keyboard",
+      "multi-step",
+      "successful"
+    ],
+    "nodes": [
+      {
+        "id": "screen_observe_0",
+        "tool": "screen_observe",
+        "avgDurationMs": 892,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "mouse_click_1",
+        "tool": "mouse_click",
+        "avgDurationMs": 131,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "wait_2",
+        "tool": "wait",
+        "avgDurationMs": 517,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "keyboard_type_3",
+        "tool": "keyboard_type",
+        "avgDurationMs": 4064,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "wait_4",
+        "tool": "wait",
+        "avgDurationMs": 1029,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "keyboard_press_5",
+        "tool": "keyboard_press",
+        "avgDurationMs": 645,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "screen_observe_6",
+        "tool": "screen_observe",
+        "avgDurationMs": 293,
+        "successCount": 1,
+        "failureCount": 0
+      }
+    ],
+    "edges": [
+      {
+        "from": "screen_observe_0",
+        "to": "mouse_click_1",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 1601
+      },
+      {
+        "from": "mouse_click_1",
+        "to": "wait_2",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 1717
+      },
+      {
+        "from": "wait_2",
+        "to": "keyboard_type_3",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 4513
+      },
+      {
+        "from": "keyboard_type_3",
+        "to": "wait_4",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 2465
+      },
+      {
+        "from": "wait_4",
+        "to": "keyboard_press_5",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 2245
+      },
+      {
+        "from": "keyboard_press_5",
+        "to": "screen_observe_6",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 1641
+      }
+    ],
+    "createdAt": 1767946772210,
+    "lastUsed": 1767946772210,
+    "totalExecutions": 1,
+    "confidence": 0.5
+  },
+  {
+    "skillId": "skill_1767946911464",
+    "description": "Sequence: screen_observe → mouse_click → wait → screen_observe → mouse_click → wait → screen_observe",
+    "tags": [
+      "screenshot",
+      "mouse",
+      "multi-step",
+      "successful"
+    ],
+    "nodes": [
+      {
+        "id": "screen_observe_0",
+        "tool": "screen_observe",
+        "avgDurationMs": 292,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "mouse_click_1",
+        "tool": "mouse_click",
+        "avgDurationMs": 133,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "wait_2",
+        "tool": "wait",
+        "avgDurationMs": 519,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "screen_observe_3",
+        "tool": "screen_observe",
+        "avgDurationMs": 328,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "mouse_click_4",
+        "tool": "mouse_click",
+        "avgDurationMs": 130,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "wait_5",
+        "tool": "wait",
+        "avgDurationMs": 517,
+        "successCount": 1,
+        "failureCount": 0
+      },
+      {
+        "id": "screen_observe_6",
+        "tool": "screen_observe",
+        "avgDurationMs": 313,
+        "successCount": 1,
+        "failureCount": 0
+      }
+    ],
+    "edges": [
+      {
+        "from": "screen_observe_0",
+        "to": "mouse_click_1",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 1859
+      },
+      {
+        "from": "mouse_click_1",
+        "to": "wait_2",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 997
+      },
+      {
+        "from": "wait_2",
+        "to": "screen_observe_3",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 725
+      },
+      {
+        "from": "screen_observe_3",
+        "to": "mouse_click_4",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 1975
+      },
+      {
+        "from": "mouse_click_4",
+        "to": "wait_5",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 951
+      },
+      {
+        "from": "wait_5",
+        "to": "screen_observe_6",
+        "weight": 1,
+        "successRate": 1,
+        "avgTransitionMs": 1009
+      }
+    ],
+    "createdAt": 1767946911464,
+    "lastUsed": 1767946911464,
+    "totalExecutions": 1,
+    "confidence": 0.5
   }
 ]
