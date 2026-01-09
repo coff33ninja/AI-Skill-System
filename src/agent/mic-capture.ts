@@ -10,6 +10,7 @@ import * as os from "os";
 export class MicCapture {
   private process: ChildProcess | null = null;
   private isCapturing = false;
+  private isPaused = false;
   private onAudioCallback?: (base64Audio: string) => void;
   private onErrorCallback?: (error: Error) => void;
   private platform: string;
@@ -173,6 +174,11 @@ export class MicCapture {
     const chunkSize = 3200; // 100ms at 16kHz 16-bit mono = 16000 * 2 * 0.1
 
     this.process.stdout?.on("data", (data: Buffer) => {
+      // Skip sending audio if paused (but still consume the buffer)
+      if (this.isPaused) {
+        return;
+      }
+      
       audioBuffer = Buffer.concat([audioBuffer, data]);
 
       // Send chunks when we have enough data
@@ -218,7 +224,29 @@ export class MicCapture {
       this.process = null;
     }
     this.isCapturing = false;
+    this.isPaused = false;
     console.log("🔇 Microphone capture stopped");
+  }
+
+  /**
+   * Pause sending audio (mic still captures but doesn't send)
+   * Used to prevent feedback when AI is speaking
+   */
+  pause(): void {
+    if (this.isCapturing && !this.isPaused) {
+      this.isPaused = true;
+      console.log("🔇 Mic paused (AI speaking)");
+    }
+  }
+
+  /**
+   * Resume sending audio after pause
+   */
+  resume(): void {
+    if (this.isCapturing && this.isPaused) {
+      this.isPaused = false;
+      console.log("🎤 Mic resumed");
+    }
   }
 
   /**
@@ -226,5 +254,12 @@ export class MicCapture {
    */
   get capturing(): boolean {
     return this.isCapturing;
+  }
+
+  /**
+   * Check if paused
+   */
+  get paused(): boolean {
+    return this.isPaused;
   }
 }

@@ -9,6 +9,10 @@ import { DriftTracker } from "../memory/drift-tracker.js";
 // Optional nut-js dependency for mouse/keyboard control
 let mouse: any;
 let keyboard: any;
+let screen: any;
+let clipboard: any;
+let getWindows: any;
+let getActiveWindow: any;
 let Key: any;
 let Button: any;
 let robotAvailable = false;
@@ -17,6 +21,10 @@ try {
   const nutjs = await import("@nut-tree-fork/nut-js");
   mouse = nutjs.mouse;
   keyboard = nutjs.keyboard;
+  screen = nutjs.screen;
+  clipboard = nutjs.clipboard;
+  getWindows = nutjs.getWindows;
+  getActiveWindow = nutjs.getActiveWindow;
   Key = nutjs.Key;
   Button = nutjs.Button;
   robotAvailable = true;
@@ -66,6 +74,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: { type: "object", properties: {} }
     },
     {
+      name: "screen_info",
+      description: "Get information about all connected screens/monitors (count, dimensions, positions)",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "mouse_position",
+      description: "Get current mouse cursor position (x, y coordinates)",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
       name: "mouse_move",
       description: "Move mouse to coordinates",
       inputSchema: {
@@ -101,6 +119,113 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         type: "object",
         properties: { keys: { type: "string" } },
         required: ["keys"]
+      }
+    },
+    {
+      name: "mouse_scroll",
+      description: "Scroll mouse wheel up or down",
+      inputSchema: {
+        type: "object",
+        properties: { 
+          direction: { type: "string", enum: ["up", "down"], default: "down" },
+          amount: { type: "number", default: 3, description: "Number of scroll steps" }
+        }
+      }
+    },
+    {
+      name: "mouse_drag",
+      description: "Drag mouse from current position to target coordinates",
+      inputSchema: {
+        type: "object",
+        properties: { 
+          x: { type: "number" }, 
+          y: { type: "number" } 
+        },
+        required: ["x", "y"]
+      }
+    },
+    {
+      name: "clipboard_read",
+      description: "Read current clipboard text content",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "clipboard_write",
+      description: "Write text to clipboard",
+      inputSchema: {
+        type: "object",
+        properties: { text: { type: "string" } },
+        required: ["text"]
+      }
+    },
+    {
+      name: "window_active",
+      description: "Get information about the currently active/focused window",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "window_list",
+      description: "List all open windows with their titles and positions",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "mouse_hold",
+      description: "Press and hold or release a mouse button (for drag operations)",
+      inputSchema: {
+        type: "object",
+        properties: { 
+          button: { type: "string", enum: ["left", "right"], default: "left" },
+          action: { type: "string", enum: ["down", "up"] }
+        },
+        required: ["action"]
+      }
+    },
+    {
+      name: "keyboard_hold",
+      description: "Press and hold or release a key (for modifier keys like shift, ctrl)",
+      inputSchema: {
+        type: "object",
+        properties: { 
+          key: { type: "string", description: "Key name (ctrl, shift, alt, etc.)" },
+          action: { type: "string", enum: ["down", "up"] }
+        },
+        required: ["key", "action"]
+      }
+    },
+    {
+      name: "wait",
+      description: "Wait/pause for specified milliseconds before next action",
+      inputSchema: {
+        type: "object",
+        properties: { ms: { type: "number", default: 1000 } }
+      }
+    },
+    {
+      name: "screen_highlight",
+      description: "Briefly highlight a region on screen (visual feedback for user)",
+      inputSchema: {
+        type: "object",
+        properties: { 
+          x: { type: "number" },
+          y: { type: "number" },
+          width: { type: "number", default: 100 },
+          height: { type: "number", default: 100 }
+        },
+        required: ["x", "y"]
+      }
+    },
+    {
+      name: "mouse_triple_click",
+      description: "Triple click to select entire line/paragraph",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "keyboard_press",
+      description: "Press a single key (enter, tab, escape, arrow keys, etc.)",
+      inputSchema: {
+        type: "object",
+        properties: { key: { type: "string" } },
+        required: ["key"]
       }
     },
     {
@@ -170,6 +295,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
           data: img.toString("base64"),
           mimeType: "image/png"
         }]
+      };
+    }
+
+    case "screen_info": {
+      // Get screen info - works even without control enabled (read-only)
+      const displays = await screenshot.listDisplays();
+      
+      // Also get primary screen dimensions from nut-js if available
+      let primaryWidth = 0, primaryHeight = 0;
+      if (robotAvailable && screen) {
+        try {
+          primaryWidth = await screen.width();
+          primaryHeight = await screen.height();
+        } catch {}
+      }
+      
+      const info = {
+        screenCount: displays.length,
+        screens: displays.map((d: any, i: number) => ({
+          id: d.id,
+          name: d.name || `Display ${i + 1}`,
+          primary: i === 0,
+          width: d.width || primaryWidth,
+          height: d.height || primaryHeight,
+          x: d.left || 0,
+          y: d.top || 0
+        })),
+        totalWidth: primaryWidth,
+        totalHeight: primaryHeight
+      };
+      
+      return { content: [{ type: "text", text: JSON.stringify(info, null, 2) }] };
+    }
+
+    case "mouse_position": {
+      // Get mouse position - works even without control enabled (read-only)
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const pos = await mouse.getPosition();
+      return { 
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify({ x: pos.x, y: pos.y }, null, 2) 
+        }] 
       };
     }
 
@@ -254,6 +423,216 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       for (const k of keyList.reverse()) await keyboard.releaseKey(k);
       
       return { content: [{ type: "text", text: `Shortcut: ${keys}` }] };
+    }
+
+    case "mouse_scroll": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { direction = "down", amount = 3 } = args || {};
+      
+      for (let i = 0; i < amount; i++) {
+        if (direction === "up") {
+          await mouse.scrollUp(1);
+        } else {
+          await mouse.scrollDown(1);
+        }
+      }
+      
+      return { content: [{ type: "text", text: `Scrolled ${direction} ${amount} steps` }] };
+    }
+
+    case "mouse_drag": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { x, y } = args as { x: number; y: number };
+      const start = await mouse.getPosition();
+      await mouse.drag([{ x, y }]);
+      
+      return { content: [{ type: "text", text: `Dragged from (${start.x}, ${start.y}) to (${x}, ${y})` }] };
+    }
+
+    case "clipboard_read": {
+      // Read-only, doesn't require control enabled
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      try {
+        const text = await clipboard.getContent();
+        return { content: [{ type: "text", text: text || "(clipboard empty)" }] };
+      } catch {
+        return { content: [{ type: "text", text: "(clipboard empty or not text)" }] };
+      }
+    }
+
+    case "clipboard_write": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { text } = args as { text: string };
+      await clipboard.setContent(text);
+      
+      return { content: [{ type: "text", text: `Copied to clipboard: "${text.slice(0, 50)}${text.length > 50 ? '...' : ''}"` }] };
+    }
+
+    case "window_active": {
+      // Read-only, doesn't require control enabled
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      try {
+        const win = await getActiveWindow();
+        const region = await win.region;
+        const title = await win.title;
+        
+        return { 
+          content: [{ 
+            type: "text", 
+            text: JSON.stringify({
+              title,
+              x: region.left,
+              y: region.top,
+              width: region.width,
+              height: region.height
+            }, null, 2)
+          }] 
+        };
+      } catch (e) {
+        return { content: [{ type: "text", text: "Could not get active window info" }] };
+      }
+    }
+
+    case "window_list": {
+      // Read-only, doesn't require control enabled
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      try {
+        const windows = await getWindows();
+        const windowInfo = await Promise.all(
+          windows.slice(0, 20).map(async (win: any) => {
+            try {
+              const title = await win.title;
+              const region = await win.region;
+              return {
+                title,
+                x: region.left,
+                y: region.top,
+                width: region.width,
+                height: region.height
+              };
+            } catch {
+              return null;
+            }
+          })
+        );
+        
+        const validWindows = windowInfo.filter(w => w && w.title);
+        return { content: [{ type: "text", text: JSON.stringify(validWindows, null, 2) }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: "Could not list windows" }] };
+      }
+    }
+
+    case "mouse_hold": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { button = "left", action } = args as { button?: string; action: string };
+      const btn = button === "right" ? Button.RIGHT : Button.LEFT;
+      
+      if (action === "down") {
+        await mouse.pressButton(btn);
+        return { content: [{ type: "text", text: `Mouse ${button} button held down` }] };
+      } else {
+        await mouse.releaseButton(btn);
+        return { content: [{ type: "text", text: `Mouse ${button} button released` }] };
+      }
+    }
+
+    case "keyboard_hold": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { key, action } = args as { key: string; action: string };
+      
+      const keyMap: Record<string, any> = {
+        'ctrl': Key.LeftControl, 'control': Key.LeftControl,
+        'alt': Key.LeftAlt, 'shift': Key.LeftShift,
+        'cmd': Key.LeftSuper, 'win': Key.LeftSuper, 'super': Key.LeftSuper,
+      };
+      
+      const k = keyMap[key.toLowerCase()];
+      if (!k) throw new Error(`Unknown key: ${key}. Use ctrl, alt, shift, cmd, or win.`);
+      
+      if (action === "down") {
+        await keyboard.pressKey(k);
+        return { content: [{ type: "text", text: `Key ${key} held down` }] };
+      } else {
+        await keyboard.releaseKey(k);
+        return { content: [{ type: "text", text: `Key ${key} released` }] };
+      }
+    }
+
+    case "wait": {
+      const { ms = 1000 } = args || {};
+      await new Promise(resolve => setTimeout(resolve, ms));
+      return { content: [{ type: "text", text: `Waited ${ms}ms` }] };
+    }
+
+    case "screen_highlight": {
+      // Visual feedback - works without control (just shows, doesn't interact)
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { x, y, width = 100, height = 100 } = args as { x: number; y: number; width?: number; height?: number };
+      
+      try {
+        // nut-js has a highlight feature
+        await screen.highlight({ left: x, top: y, width, height });
+        return { content: [{ type: "text", text: `Highlighted region at (${x}, ${y}) ${width}x${height}` }] };
+      } catch {
+        // Fallback: just confirm the coordinates
+        return { content: [{ type: "text", text: `Region: (${x}, ${y}) ${width}x${height} (highlight not available)` }] };
+      }
+    }
+
+    case "mouse_triple_click": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      // Triple click = 3 rapid left clicks
+      await mouse.leftClick();
+      await mouse.leftClick();
+      await mouse.leftClick();
+      
+      return { content: [{ type: "text", text: "Triple clicked (select line/paragraph)" }] };
+    }
+
+    case "keyboard_press": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { key } = args as { key: string };
+      
+      const keyMap: Record<string, any> = {
+        'enter': Key.Return, 'return': Key.Return,
+        'tab': Key.Tab, 'escape': Key.Escape, 'esc': Key.Escape,
+        'space': Key.Space, 'backspace': Key.Backspace,
+        'delete': Key.Delete, 'del': Key.Delete,
+        'home': Key.Home, 'end': Key.End,
+        'pageup': Key.PageUp, 'pagedown': Key.PageDown,
+        'up': Key.Up, 'down': Key.Down, 'left': Key.Left, 'right': Key.Right,
+        'insert': Key.Insert, 'printscreen': Key.Print,
+        'f1': Key.F1, 'f2': Key.F2, 'f3': Key.F3, 'f4': Key.F4,
+        'f5': Key.F5, 'f6': Key.F6, 'f7': Key.F7, 'f8': Key.F8,
+        'f9': Key.F9, 'f10': Key.F10, 'f11': Key.F11, 'f12': Key.F12
+      };
+      
+      const k = keyMap[key.toLowerCase()];
+      if (!k) throw new Error(`Unknown key: ${key}`);
+      
+      await keyboard.pressKey(k);
+      await keyboard.releaseKey(k);
+      
+      return { content: [{ type: "text", text: `Pressed: ${key}` }] };
     }
 
     case "skills_list": {

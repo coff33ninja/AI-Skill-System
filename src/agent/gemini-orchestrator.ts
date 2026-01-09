@@ -58,20 +58,46 @@ export class GeminiOrchestrator {
   async connectLive(systemInstruction?: string): Promise<void> {
     const apiKey = this.keyPool.next();
     
+    // Get available tools from MCP or Mesh
+    const toolsResponse = await this.listTools();
+    const mcpTools = toolsResponse.tools || [];
+    
+    // Convert MCP tools to Live API format
+    const liveTools = mcpTools.map((t: any) => ({
+      name: t.name,
+      description: t.description,
+      parameters: t.inputSchema
+    }));
+    
     this.liveClient = new GeminiLiveClient({
       apiKey,
       model: LIVE_MODEL,
       voiceName: "Aoede",
+      tools: liveTools,
       systemInstruction: systemInstruction || `
 You are an AI agent that controls computers through voice commands.
-Speak naturally and clearly. Narrate your actions.
-Stop immediately if uncertain.
+You have tools to control the mouse, keyboard, and take screenshots.
+IMPORTANT: You MUST use the tools to perform actions - do not just describe what you would do.
+1. First call control_enable to get permission
+2. Use screen_observe to see the screen
+3. Use mouse_move, mouse_click, keyboard_type, keyboard_shortcut to control
+4. Call control_disable when done
+Speak naturally and narrate what you're doing as you do it.
       `.trim()
     });
 
+    // Track if we've received audio in this turn (to know when to resume mic)
+    let receivedAudioThisTurn = false;
+
     // Set up event handlers
     this.liveClient.on("audio", async (event: LiveEvent) => {
-      console.log("🔊 Playing audio response...");
+      // Pause mic while AI is speaking to prevent feedback
+      if (this.isListening && !this.micCapture.paused) {
+        this.micCapture.pause();
+      }
+      receivedAudioThisTurn = true;
+      
+      console.log("🔊 Received audio chunk, playing...");
       try {
         await this.audioPlayer.play(event.data.data);
       } catch (err) {
@@ -92,14 +118,42 @@ Stop immediately if uncertain.
       }
     });
 
-    this.liveClient.on("turnComplete", (_event: LiveEvent) => {
+    this.liveClient.on("error", (event: LiveEvent) => {
+      console.error("❌ Live API error:", event.data);
+    });
+
+    // Track current trace for skill recording in voice mode
+    let currentTraceId: string | null = null;
+
+    // Handle turn complete - resume mic and finalize skill traces
+    this.liveClient.on("turnComplete", async (_event: LiveEvent) => {
       console.log("✅ Turn complete");
       // Flush any remaining buffered audio
       this.audioPlayer.flush();
-    });
-
-    this.liveClient.on("error", (event: LiveEvent) => {
-      console.error("❌ Live API error:", event.data);
+      
+      // Resume mic after AI finishes speaking (with small delay for audio to finish)
+      if (this.isListening && receivedAudioThisTurn) {
+        setTimeout(() => {
+          this.micCapture.resume();
+          console.log("🎤 Listening resumed");
+        }, 300);
+      }
+      receivedAudioThisTurn = false;
+      
+      // Finalize skill trace if we had tool calls
+      if (currentTraceId) {
+        await this.recorder.finalizeTrace(currentTraceId, 'success');
+        
+        // Capture drift snapshot for the new skill
+        const skills = await this.recorder.storage.loadSkills();
+        if (skills.length > 0) {
+          const latestSkill = skills[skills.length - 1];
+          await this.driftTracker.captureSnapshot(latestSkill);
+          console.log("📚 Skill recorded and saved");
+        }
+        
+        currentTraceId = null;
+      }
     });
 
     // Handle tool calls from Live API
@@ -108,17 +162,52 @@ Stop immediately if uncertain.
       const toolCall = event.data;
       
       if (toolCall.functionCalls) {
-        const responses: Array<{ name: string; response: any }> = [];
+        // Start a new trace if we don't have one
+        if (!currentTraceId) {
+          currentTraceId = `voice_trace_${Date.now()}`;
+          this.recorder.startTrace(currentTraceId);
+        }
+        
+        const responses: Array<{ id: string; name: string; response: any }> = [];
         
         for (const fc of toolCall.functionCalls) {
-          console.log(`🔧 Executing: ${fc.name}`);
+          console.log(`🔧 Executing: ${fc.name} (id: ${fc.id})`);
+          const startTime = Date.now();
           try {
             const result = await this.callTool(fc.name, fc.args || {});
-            responses.push({ name: fc.name, response: result });
-            console.log(`✅ Tool ${fc.name} completed`);
+            const duration = Date.now() - startTime;
+            
+            // Record step for skill learning
+            this.recorder.recordStep(currentTraceId, fc.name, true, duration, fc.args);
+            
+            // Process result based on content type
+            let responseData: any = { success: true };
+            
+            if (result?.content) {
+              for (const item of result.content) {
+                if (item.type === "text") {
+                  responseData = { result: item.text };
+                } else if (item.type === "image") {
+                  // For images, just confirm we got it - don't send the huge base64
+                  // The Live API can't process images in tool responses anyway
+                  responseData = { 
+                    result: "Screenshot captured successfully. I can see the screen.",
+                    imageSize: item.data?.length || 0
+                  };
+                }
+              }
+            }
+            
+            responses.push({ id: fc.id, name: fc.name, response: responseData });
+            console.log(`✅ Tool ${fc.name} completed in ${duration}ms`);
           } catch (err) {
+            const duration = Date.now() - startTime;
+            // Record failed step
+            this.recorder.recordStep(currentTraceId, fc.name, false, duration, fc.args);
+            
             console.error(`❌ Tool ${fc.name} failed:`, err);
             responses.push({ 
+              id: fc.id,
               name: fc.name, 
               response: { error: err instanceof Error ? err.message : String(err) }
             });
@@ -126,7 +215,19 @@ Stop immediately if uncertain.
         }
         
         // Send tool responses back to Live API
+        console.log("📤 Sending tool responses to continue conversation...");
         this.liveClient!.sendToolResponse(responses);
+        
+        // Resume mic after sending tool response - model should respond with audio
+        // but if it doesn't, we don't want to leave mic paused forever
+        if (this.isListening) {
+          setTimeout(() => {
+            if (this.micCapture.paused) {
+              this.micCapture.resume();
+              console.log("🎤 Mic resumed after tool response");
+            }
+          }, 2000); // Give model 2 seconds to start speaking
+        }
       }
     });
 

@@ -5,6 +5,11 @@ export interface LiveClientConfig {
   model?: string;
   voiceName?: string;
   systemInstruction?: string;
+  tools?: Array<{
+    name: string;
+    description: string;
+    parameters?: any;
+  }>;
 }
 
 export interface AudioChunk {
@@ -102,27 +107,40 @@ export class GeminiLiveClient {
 
   /**
    * Send initial setup message
-   * Note: Gemini Live API uses snake_case for all config properties
+   * Note: Gemini Live API uses camelCase for all config properties
+   * IMPORTANT: response_modalities can only have ONE value - either TEXT or AUDIO, not both
    */
   private sendSetup(): void {
-    const setupMessage = {
+    const setupMessage: any = {
       setup: {
         model: this.config.model,
-        generation_config: {
-          response_modalities: ["AUDIO"],
-          speech_config: {
-            voice_config: {
-              prebuilt_voice_config: {
-                voice_name: this.config.voiceName
+        generationConfig: {
+          // Live API only supports ONE modality - use AUDIO for voice interaction
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: this.config.voiceName
               }
             }
           }
         },
-        system_instruction: this.config.systemInstruction ? {
+        systemInstruction: this.config.systemInstruction ? {
           parts: [{ text: this.config.systemInstruction }]
         } : undefined
       }
     };
+
+    // Add tools if provided
+    if (this.config.tools && this.config.tools.length > 0) {
+      setupMessage.setup.tools = [{
+        functionDeclarations: this.config.tools.map(t => ({
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters || { type: "object", properties: {} }
+        }))
+      }];
+    }
 
     console.log("📤 Sending setup:", JSON.stringify(setupMessage, null, 2));
     this.send(setupMessage);
@@ -199,9 +217,9 @@ export class GeminiLiveClient {
     }
 
     this.send({
-      realtime_input: {
-        media_chunks: [{
-          mime_type: "audio/pcm",
+      realtimeInput: {
+        mediaChunks: [{
+          mimeType: "audio/pcm",
           data: audioData
         }]
       }
@@ -217,12 +235,12 @@ export class GeminiLiveClient {
     }
 
     this.send({
-      client_content: {
+      clientContent: {
         turns: [{
           role: "user",
           parts: [{ text }]
         }],
-        turn_complete: endTurn
+        turnComplete: endTurn
       }
     });
   }
@@ -230,15 +248,18 @@ export class GeminiLiveClient {
   /**
    * Send tool response back to the model
    */
-  sendToolResponse(functionResponses: Array<{ name: string; response: any }>): void {
-    this.send({
-      tool_response: {
-        function_responses: functionResponses.map(fr => ({
+  sendToolResponse(functionResponses: Array<{ id: string; name: string; response: any }>): void {
+    const msg = {
+      toolResponse: {
+        functionResponses: functionResponses.map(fr => ({
+          id: fr.id,
           name: fr.name,
           response: fr.response
         }))
       }
-    });
+    };
+    console.log("📤 Sending tool response:", JSON.stringify(msg, null, 2).slice(0, 500));
+    this.send(msg);
   }
 
   /**
