@@ -30,29 +30,30 @@
 ## 🔮 Future Enhancements
 
 ### Phase 1: Image Recognition (nut-js plugins)
-- [ ] `screen_find_image` - Find image/icon on screen by template matching
-- [ ] `screen_find_text` - OCR to find text on screen (requires @nut-tree/plugin-ocr)
+- [ ] `screen_find_image` - Find image/icon on screen by template matching (needs @nut-tree/nl-matcher)
+- [ ] `screen_find_text` - OCR to find text on screen (needs @nut-tree/plugin-ocr)
 - [ ] `screen_wait_for` - Wait until image/text appears on screen
 - [ ] `screen_find_all` - Find all instances of image/text
-- [ ] `screen_region_capture` - Capture specific region only
+- [x] `screen_region_capture` - Capture specific region only
+- [x] `screen_color_at` - Get pixel color at coordinates
 
 ### Phase 2: Advanced Window Management
-- [ ] `window_focus` - Focus/activate window by title
+- [x] `window_focus` - Focus/activate window by title
 - [ ] `window_minimize` - Minimize window
 - [ ] `window_maximize` - Maximize window
 - [ ] `window_restore` - Restore minimized window
 - [ ] `window_close` - Close window
-- [ ] `window_resize` - Resize window to dimensions
-- [ ] `window_move` - Move window to position
+- [x] `window_resize` - Resize window to dimensions
+- [x] `window_move` - Move window to position
 - [ ] `window_snap` - Snap window to screen edge (left/right/top/bottom)
 
 ### Phase 3: System Integration
-- [ ] `app_launch` - Launch application by name/path
+- [x] `app_launch` - Launch application by name/path
 - [ ] `app_close` - Close application
 - [ ] `app_list` - List running applications
-- [ ] `file_open` - Open file with default application
-- [ ] `folder_open` - Open folder in file manager
-- [ ] `url_open` - Open URL in default browser
+- [x] `file_open` - Open file with default application
+- [x] `folder_open` - Open folder in file manager
+- [x] `url_open` - Open URL in default browser
 - [ ] `notification_show` - Show system notification
 - [ ] `volume_set` - Set system volume
 - [ ] `volume_mute` - Mute/unmute system audio

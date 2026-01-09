@@ -228,6 +228,151 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["key"]
       }
     },
+    // Phase 1: Screen Region Tools
+    {
+      name: "screen_region_capture",
+      description: "Capture a specific region of the screen",
+      inputSchema: {
+        type: "object",
+        properties: {
+          x: { type: "number" },
+          y: { type: "number" },
+          width: { type: "number" },
+          height: { type: "number" }
+        },
+        required: ["x", "y", "width", "height"]
+      }
+    },
+    {
+      name: "screen_color_at",
+      description: "Get the pixel color at specific coordinates",
+      inputSchema: {
+        type: "object",
+        properties: {
+          x: { type: "number" },
+          y: { type: "number" }
+        },
+        required: ["x", "y"]
+      }
+    },
+    // Phase 2: Window Management
+    {
+      name: "window_focus",
+      description: "Focus/activate a window by its title (partial match supported)",
+      inputSchema: {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"]
+      }
+    },
+    {
+      name: "window_resize",
+      description: "Resize a window by title",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          width: { type: "number" },
+          height: { type: "number" }
+        },
+        required: ["title", "width", "height"]
+      }
+    },
+    {
+      name: "window_move",
+      description: "Move a window to specific coordinates",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          x: { type: "number" },
+          y: { type: "number" }
+        },
+        required: ["title", "x", "y"]
+      }
+    },
+    {
+      name: "window_minimize",
+      description: "Minimize a window by title",
+      inputSchema: {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"]
+      }
+    },
+    {
+      name: "window_maximize",
+      description: "Maximize a window by title",
+      inputSchema: {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"]
+      }
+    },
+    {
+      name: "window_close",
+      description: "Close a window by title",
+      inputSchema: {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"]
+      }
+    },
+    {
+      name: "process_list",
+      description: "List running processes with their names and PIDs",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "process_kill",
+      description: "Kill a process by name or PID",
+      inputSchema: {
+        type: "object",
+        properties: { 
+          name: { type: "string", description: "Process name (optional)" },
+          pid: { type: "number", description: "Process ID (optional)" }
+        }
+      }
+    },
+    // Phase 3: System Integration
+    {
+      name: "app_launch",
+      description: "Launch an application by name or path",
+      inputSchema: {
+        type: "object",
+        properties: { 
+          app: { type: "string", description: "Application name or full path" }
+        },
+        required: ["app"]
+      }
+    },
+    {
+      name: "url_open",
+      description: "Open a URL in the default browser",
+      inputSchema: {
+        type: "object",
+        properties: { url: { type: "string" } },
+        required: ["url"]
+      }
+    },
+    {
+      name: "file_open",
+      description: "Open a file with its default application",
+      inputSchema: {
+        type: "object",
+        properties: { path: { type: "string" } },
+        required: ["path"]
+      }
+    },
+    {
+      name: "folder_open",
+      description: "Open a folder in the file manager",
+      inputSchema: {
+        type: "object",
+        properties: { path: { type: "string" } },
+        required: ["path"]
+      }
+    },
     {
       name: "skills_list",
       description: "List all learned skills with their confidence and execution count",
@@ -633,6 +778,460 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       await keyboard.releaseKey(k);
       
       return { content: [{ type: "text", text: `Pressed: ${key}` }] };
+    }
+
+    // Phase 1: Screen Region Tools
+    case "screen_region_capture": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { x, y, width, height } = args as { x: number; y: number; width: number; height: number };
+      
+      // Capture full screen then crop with sharp
+      const fullImg = await screenshot({ format: "png" });
+      
+      try {
+        const sharp = (await import("sharp")).default;
+        const cropped = await sharp(fullImg)
+          .extract({ left: x, top: y, width, height })
+          .png()
+          .toBuffer();
+        
+        return {
+          content: [{
+            type: "image",
+            data: cropped.toString("base64"),
+            mimeType: "image/png"
+          }]
+        };
+      } catch (e) {
+        // Fallback if sharp fails
+        return {
+          content: [
+            { type: "text", text: `Region: (${x}, ${y}) ${width}x${height} - crop failed, returning full screen` },
+            { type: "image", data: fullImg.toString("base64"), mimeType: "image/png" }
+          ]
+        };
+      }
+    }
+
+    case "screen_color_at": {
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { x, y } = args as { x: number; y: number };
+      
+      try {
+        const color = await screen.colorAt({ x, y });
+        return { 
+          content: [{ 
+            type: "text", 
+            text: JSON.stringify({
+              x, y,
+              r: color.R,
+              g: color.G,
+              b: color.B,
+              hex: `#${color.R.toString(16).padStart(2, '0')}${color.G.toString(16).padStart(2, '0')}${color.B.toString(16).padStart(2, '0')}`
+            }, null, 2)
+          }] 
+        };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Could not get color at (${x}, ${y})` }] };
+      }
+    }
+
+    // Phase 2: Window Management
+    case "window_focus": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { title } = args as { title: string };
+      
+      try {
+        const windows = await getWindows();
+        const target = await Promise.all(
+          windows.map(async (win: any) => {
+            try {
+              const winTitle = await win.title;
+              return { win, title: winTitle };
+            } catch {
+              return null;
+            }
+          })
+        ).then(results => 
+          results.find(r => r && r.title && r.title.toLowerCase().includes(title.toLowerCase()))
+        );
+        
+        if (!target) {
+          return { content: [{ type: "text", text: `Window not found: ${title}` }] };
+        }
+        
+        await target.win.focus();
+        return { content: [{ type: "text", text: `Focused window: ${target.title}` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Could not focus window: ${title}` }] };
+      }
+    }
+
+    case "window_resize": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { title, width, height } = args as { title: string; width: number; height: number };
+      
+      try {
+        const windows = await getWindows();
+        const target = await Promise.all(
+          windows.map(async (win: any) => {
+            try {
+              const winTitle = await win.title;
+              return { win, title: winTitle };
+            } catch {
+              return null;
+            }
+          })
+        ).then(results => 
+          results.find(r => r && r.title && r.title.toLowerCase().includes(title.toLowerCase()))
+        );
+        
+        if (!target) {
+          return { content: [{ type: "text", text: `Window not found: ${title}` }] };
+        }
+        
+        await target.win.resize({ width, height });
+        return { content: [{ type: "text", text: `Resized "${target.title}" to ${width}x${height}` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Could not resize window: ${title}` }] };
+      }
+    }
+
+    case "window_move": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { title, x, y } = args as { title: string; x: number; y: number };
+      
+      try {
+        const windows = await getWindows();
+        const target = await Promise.all(
+          windows.map(async (win: any) => {
+            try {
+              const winTitle = await win.title;
+              return { win, title: winTitle };
+            } catch {
+              return null;
+            }
+          })
+        ).then(results => 
+          results.find(r => r && r.title && r.title.toLowerCase().includes(title.toLowerCase()))
+        );
+        
+        if (!target) {
+          return { content: [{ type: "text", text: `Window not found: ${title}` }] };
+        }
+        
+        await target.win.move({ x, y });
+        return { content: [{ type: "text", text: `Moved "${target.title}" to (${x}, ${y})` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Could not move window: ${title}` }] };
+      }
+    }
+
+    case "window_minimize": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { title } = args as { title: string };
+      
+      try {
+        const windows = await getWindows();
+        const target = await Promise.all(
+          windows.map(async (win: any) => {
+            try {
+              const winTitle = await win.title;
+              return { win, title: winTitle };
+            } catch {
+              return null;
+            }
+          })
+        ).then(results => 
+          results.find(r => r && r.title && r.title.toLowerCase().includes(title.toLowerCase()))
+        );
+        
+        if (!target) {
+          return { content: [{ type: "text", text: `Window not found: ${title}` }] };
+        }
+        
+        await target.win.minimize();
+        return { content: [{ type: "text", text: `Minimized: ${target.title}` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Could not minimize window: ${title}` }] };
+      }
+    }
+
+    case "window_maximize": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { title } = args as { title: string };
+      
+      try {
+        const windows = await getWindows();
+        const target = await Promise.all(
+          windows.map(async (win: any) => {
+            try {
+              const winTitle = await win.title;
+              return { win, title: winTitle };
+            } catch {
+              return null;
+            }
+          })
+        ).then(results => 
+          results.find(r => r && r.title && r.title.toLowerCase().includes(title.toLowerCase()))
+        );
+        
+        if (!target) {
+          return { content: [{ type: "text", text: `Window not found: ${title}` }] };
+        }
+        
+        await target.win.maximize();
+        return { content: [{ type: "text", text: `Maximized: ${target.title}` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Could not maximize window: ${title}` }] };
+      }
+    }
+
+    case "window_close": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      if (!robotAvailable) throw new Error("nut-js not available");
+      
+      const { title } = args as { title: string };
+      
+      try {
+        const windows = await getWindows();
+        const target = await Promise.all(
+          windows.map(async (win: any) => {
+            try {
+              const winTitle = await win.title;
+              return { win, title: winTitle };
+            } catch {
+              return null;
+            }
+          })
+        ).then(results => 
+          results.find(r => r && r.title && r.title.toLowerCase().includes(title.toLowerCase()))
+        );
+        
+        if (!target) {
+          return { content: [{ type: "text", text: `Window not found: ${title}` }] };
+        }
+        
+        // Focus then Alt+F4
+        await target.win.focus();
+        await keyboard.pressKey(Key.LeftAlt);
+        await keyboard.pressKey(Key.F4);
+        await keyboard.releaseKey(Key.F4);
+        await keyboard.releaseKey(Key.LeftAlt);
+        
+        return { content: [{ type: "text", text: `Closed: ${target.title}` }] };
+      } catch (e) {
+        return { content: [{ type: "text", text: `Could not close window: ${title}` }] };
+      }
+    }
+
+    case "process_list": {
+      const { exec } = await import("child_process");
+      const os = await import("os");
+      
+      return new Promise((resolve) => {
+        const platform = os.platform();
+        let cmd: string;
+        
+        if (platform === "win32") {
+          cmd = 'tasklist /fo csv /nh';
+        } else {
+          cmd = 'ps -eo pid,comm --no-headers';
+        }
+        
+        exec(cmd, { maxBuffer: 1024 * 1024 }, (error, stdout) => {
+          if (error) {
+            resolve({ content: [{ type: "text", text: "Could not list processes" }] });
+            return;
+          }
+          
+          let processes: { name: string; pid: number }[] = [];
+          
+          if (platform === "win32") {
+            // Parse CSV: "name.exe","PID",...
+            const lines = stdout.trim().split('\n');
+            processes = lines.slice(0, 50).map(line => {
+              const match = line.match(/"([^"]+)","(\d+)"/);
+              if (match) {
+                return { name: match[1], pid: parseInt(match[2]) };
+              }
+              return null;
+            }).filter(Boolean) as any;
+          } else {
+            // Parse: PID COMMAND
+            const lines = stdout.trim().split('\n');
+            processes = lines.slice(0, 50).map(line => {
+              const parts = line.trim().split(/\s+/);
+              if (parts.length >= 2) {
+                return { pid: parseInt(parts[0]), name: parts[1] };
+              }
+              return null;
+            }).filter(Boolean) as any;
+          }
+          
+          resolve({ content: [{ type: "text", text: JSON.stringify(processes, null, 2) }] });
+        });
+      });
+    }
+
+    case "process_kill": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { name, pid } = args as { name?: string; pid?: number };
+      const { exec } = await import("child_process");
+      const os = await import("os");
+      
+      if (!name && !pid) {
+        return { content: [{ type: "text", text: "Provide either name or pid" }] };
+      }
+      
+      return new Promise((resolve) => {
+        const platform = os.platform();
+        let cmd: string;
+        
+        if (platform === "win32") {
+          cmd = pid ? `taskkill /PID ${pid} /F` : `taskkill /IM "${name}" /F`;
+        } else {
+          cmd = pid ? `kill -9 ${pid}` : `pkill -9 "${name}"`;
+        }
+        
+        exec(cmd, (error) => {
+          if (error) {
+            resolve({ content: [{ type: "text", text: `Failed to kill process: ${name || pid}` }] });
+          } else {
+            resolve({ content: [{ type: "text", text: `Killed: ${name || pid}` }] });
+          }
+        });
+      });
+    }
+
+    // Phase 3: System Integration
+    case "app_launch": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { app } = args as { app: string };
+      const { exec } = await import("child_process");
+      const os = await import("os");
+      
+      return new Promise((resolve) => {
+        let cmd: string;
+        const platform = os.platform();
+        
+        if (platform === "win32") {
+          cmd = `start "" "${app}"`;
+        } else if (platform === "darwin") {
+          cmd = `open -a "${app}"`;
+        } else {
+          cmd = app; // Linux: just run the command
+        }
+        
+        exec(cmd, (error) => {
+          if (error) {
+            resolve({ content: [{ type: "text", text: `Failed to launch: ${app}` }] });
+          } else {
+            resolve({ content: [{ type: "text", text: `Launched: ${app}` }] });
+          }
+        });
+      });
+    }
+
+    case "url_open": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { url } = args as { url: string };
+      const { exec } = await import("child_process");
+      const os = await import("os");
+      
+      return new Promise((resolve) => {
+        let cmd: string;
+        const platform = os.platform();
+        
+        if (platform === "win32") {
+          cmd = `start "" "${url}"`;
+        } else if (platform === "darwin") {
+          cmd = `open "${url}"`;
+        } else {
+          cmd = `xdg-open "${url}"`;
+        }
+        
+        exec(cmd, (error) => {
+          if (error) {
+            resolve({ content: [{ type: "text", text: `Failed to open URL: ${url}` }] });
+          } else {
+            resolve({ content: [{ type: "text", text: `Opened: ${url}` }] });
+          }
+        });
+      });
+    }
+
+    case "file_open": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { path } = args as { path: string };
+      const { exec } = await import("child_process");
+      const os = await import("os");
+      
+      return new Promise((resolve) => {
+        let cmd: string;
+        const platform = os.platform();
+        
+        if (platform === "win32") {
+          cmd = `start "" "${path}"`;
+        } else if (platform === "darwin") {
+          cmd = `open "${path}"`;
+        } else {
+          cmd = `xdg-open "${path}"`;
+        }
+        
+        exec(cmd, (error) => {
+          if (error) {
+            resolve({ content: [{ type: "text", text: `Failed to open file: ${path}` }] });
+          } else {
+            resolve({ content: [{ type: "text", text: `Opened: ${path}` }] });
+          }
+        });
+      });
+    }
+
+    case "folder_open": {
+      if (!state.enabled) throw new Error("Control not enabled");
+      
+      const { path } = args as { path: string };
+      const { exec } = await import("child_process");
+      const os = await import("os");
+      
+      return new Promise((resolve) => {
+        let cmd: string;
+        const platform = os.platform();
+        
+        if (platform === "win32") {
+          cmd = `explorer "${path}"`;
+        } else if (platform === "darwin") {
+          cmd = `open "${path}"`;
+        } else {
+          cmd = `xdg-open "${path}"`;
+        }
+        
+        exec(cmd, (error) => {
+          if (error) {
+            resolve({ content: [{ type: "text", text: `Failed to open folder: ${path}` }] });
+          } else {
+            resolve({ content: [{ type: "text", text: `Opened folder: ${path}` }] });
+          }
+        });
+      });
     }
 
     case "skills_list": {
