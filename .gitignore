@@ -7,7 +7,6 @@ dist/
 *.log
 .vscode/
 .idea/
-data/*.json
 build/
 coverage/
 .kiro/

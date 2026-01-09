@@ -51,8 +51,8 @@ export class MeshNode {
 
     try {
       const transport = new StdioClientTransport({
-        command: "node",
-        args: ["dist/mcp/computer-control-server.js"]
+        command: "npx",
+        args: ["tsx", "src/mcp/computer-control-server.ts"]
       });
 
       this.mcpClient = new Client(

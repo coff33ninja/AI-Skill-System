@@ -148,6 +148,26 @@ This opens a browser dashboard showing:
 
 The drift data is stored in `data/drift.json`.
 
+### Asking About Skills (Voice)
+
+You can ask the AI about learned skills:
+
+| Voice Command | What It Does |
+|---------------|--------------|
+| "What skills have you learned?" | Lists all skills with confidence scores |
+| "Show me mouse skills" | Searches skills tagged with 'mouse' |
+| "How is skill_123 performing?" | Shows drift analysis for a specific skill |
+
+### Pre-Loaded Skills
+
+The system comes with common cross-platform skills pre-loaded in `data/skills.json`:
+- Opening terminal/command prompt (Windows, Mac, Linux)
+- Opening common apps (browser, file manager, text editor)
+- Basic navigation shortcuts
+- Window management
+
+These give the AI a head start on common tasks.
+
 ---
 
 ## Modes

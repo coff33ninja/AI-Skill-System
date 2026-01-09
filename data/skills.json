@@ -1,0 +1,386 @@
+[
+  {
+    "skillId": "open_terminal_windows",
+    "description": "Open Command Prompt on Windows (Win+R → cmd → Enter)",
+    "tags": ["keyboard", "terminal", "windows", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 150, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 200 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_powershell_windows",
+    "description": "Open PowerShell on Windows (Win+X → I)",
+    "tags": ["keyboard", "terminal", "windows", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_1", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_shortcut_1", "weight": 10, "successRate": 1, "avgTransitionMs": 300 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_terminal_mac",
+    "description": "Open Terminal on macOS (Cmd+Space → terminal → Enter)",
+    "tags": ["keyboard", "terminal", "macos", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 200, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 300 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_terminal_linux",
+    "description": "Open Terminal on Linux (Ctrl+Alt+T)",
+    "tags": ["keyboard", "terminal", "linux", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_browser_windows",
+    "description": "Open default browser on Windows (Win+R → start http: → Enter)",
+    "tags": ["keyboard", "browser", "windows", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 200, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 200 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_file_explorer_windows",
+    "description": "Open File Explorer on Windows (Win+E)",
+    "tags": ["keyboard", "files", "windows", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_finder_mac",
+    "description": "Open Finder on macOS (Cmd+Space → finder → Enter)",
+    "tags": ["keyboard", "files", "macos", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 150, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 300 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_file_manager_linux",
+    "description": "Open File Manager on Linux (Super key → files → Enter)",
+    "tags": ["keyboard", "files", "linux", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 150, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 300 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "copy_paste",
+    "description": "Copy and Paste (Ctrl+C → Ctrl+V)",
+    "tags": ["keyboard", "clipboard", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 50, "failureCount": 0 },
+      { "id": "keyboard_shortcut_1", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 50, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_shortcut_1", "weight": 50, "successRate": 1, "avgTransitionMs": 200 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 50, "confidence": 0.98
+  },
+  {
+    "skillId": "select_all_copy",
+    "description": "Select All and Copy (Ctrl+A → Ctrl+C)",
+    "tags": ["keyboard", "clipboard", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 30, "failureCount": 0 },
+      { "id": "keyboard_shortcut_1", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 30, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_shortcut_1", "weight": 30, "successRate": 1, "avgTransitionMs": 150 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 30, "confidence": 0.97
+  },
+  {
+    "skillId": "undo_action",
+    "description": "Undo last action (Ctrl+Z)",
+    "tags": ["keyboard", "editing", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 40, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 40, "confidence": 0.98
+  },
+  {
+    "skillId": "save_file",
+    "description": "Save current file (Ctrl+S)",
+    "tags": ["keyboard", "files", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 100, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 100, "confidence": 0.99
+  },
+  {
+    "skillId": "switch_window",
+    "description": "Switch between windows (Alt+Tab)",
+    "tags": ["keyboard", "windows", "navigation", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 80, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 80, "confidence": 0.98
+  },
+  {
+    "skillId": "close_window",
+    "description": "Close current window (Alt+F4)",
+    "tags": ["keyboard", "windows", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 25, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 25, "confidence": 0.96
+  },
+  {
+    "skillId": "minimize_all_windows",
+    "description": "Show desktop / minimize all (Win+D)",
+    "tags": ["keyboard", "windows", "desktop", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 20, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 20, "confidence": 0.95
+  },
+  {
+    "skillId": "screenshot_windows",
+    "description": "Take screenshot on Windows (Win+Shift+S)",
+    "tags": ["keyboard", "screenshot", "windows", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 15, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 15, "confidence": 0.94
+  },
+  {
+    "skillId": "screenshot_mac",
+    "description": "Take screenshot on macOS (Cmd+Shift+4)",
+    "tags": ["keyboard", "screenshot", "macos", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 15, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 15, "confidence": 0.94
+  },
+  {
+    "skillId": "open_settings_windows",
+    "description": "Open Settings on Windows (Win+I)",
+    "tags": ["keyboard", "settings", "windows", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_settings_mac",
+    "description": "Open System Preferences on macOS (Cmd+Space → system preferences → Enter)",
+    "tags": ["keyboard", "settings", "macos", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 300, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 300 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "lock_screen_windows",
+    "description": "Lock screen on Windows (Win+L)",
+    "tags": ["keyboard", "security", "windows", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 20, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 20, "confidence": 0.97
+  },
+  {
+    "skillId": "lock_screen_mac",
+    "description": "Lock screen on macOS (Cmd+Ctrl+Q)",
+    "tags": ["keyboard", "security", "macos", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 20, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 20, "confidence": 0.97
+  },
+  {
+    "skillId": "new_browser_tab",
+    "description": "Open new browser tab (Ctrl+T)",
+    "tags": ["keyboard", "browser", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 60, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 60, "confidence": 0.98
+  },
+  {
+    "skillId": "close_browser_tab",
+    "description": "Close current browser tab (Ctrl+W)",
+    "tags": ["keyboard", "browser", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 50, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 50, "confidence": 0.98
+  },
+  {
+    "skillId": "reopen_closed_tab",
+    "description": "Reopen last closed tab (Ctrl+Shift+T)",
+    "tags": ["keyboard", "browser", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 20, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 20, "confidence": 0.96
+  },
+  {
+    "skillId": "find_in_page",
+    "description": "Find text in page (Ctrl+F)",
+    "tags": ["keyboard", "search", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 40, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 40, "confidence": 0.98
+  },
+  {
+    "skillId": "refresh_page",
+    "description": "Refresh current page (F5 or Ctrl+R)",
+    "tags": ["keyboard", "browser", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 35, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 35, "confidence": 0.97
+  },
+  {
+    "skillId": "zoom_in",
+    "description": "Zoom in (Ctrl+Plus)",
+    "tags": ["keyboard", "zoom", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 15, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 15, "confidence": 0.95
+  },
+  {
+    "skillId": "zoom_out",
+    "description": "Zoom out (Ctrl+Minus)",
+    "tags": ["keyboard", "zoom", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 15, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 15, "confidence": 0.95
+  },
+  {
+    "skillId": "reset_zoom",
+    "description": "Reset zoom to 100% (Ctrl+0)",
+    "tags": ["keyboard", "zoom", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 50, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_notepad_windows",
+    "description": "Open Notepad on Windows (Win+R → notepad → Enter)",
+    "tags": ["keyboard", "editor", "windows", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 150, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 200 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "open_textedit_mac",
+    "description": "Open TextEdit on macOS (Cmd+Space → textedit → Enter)",
+    "tags": ["keyboard", "editor", "macos", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 150, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 300 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  },
+  {
+    "skillId": "task_manager_windows",
+    "description": "Open Task Manager on Windows (Ctrl+Shift+Esc)",
+    "tags": ["keyboard", "system", "windows", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 15, "failureCount": 0 }
+    ],
+    "edges": [],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 15, "confidence": 0.95
+  },
+  {
+    "skillId": "activity_monitor_mac",
+    "description": "Open Activity Monitor on macOS (Cmd+Space → activity monitor → Enter)",
+    "tags": ["keyboard", "system", "macos", "multi-step", "successful"],
+    "nodes": [
+      { "id": "keyboard_shortcut_0", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_type_1", "tool": "keyboard_type", "avgDurationMs": 250, "successCount": 10, "failureCount": 0 },
+      { "id": "keyboard_shortcut_2", "tool": "keyboard_shortcut", "avgDurationMs": 100, "successCount": 10, "failureCount": 0 }
+    ],
+    "edges": [
+      { "from": "keyboard_shortcut_0", "to": "keyboard_type_1", "weight": 10, "successRate": 1, "avgTransitionMs": 300 },
+      { "from": "keyboard_type_1", "to": "keyboard_shortcut_2", "weight": 10, "successRate": 1, "avgTransitionMs": 100 }
+    ],
+    "createdAt": 1704067200000, "lastUsed": 1704067200000, "totalExecutions": 10, "confidence": 0.95
+  }
+]

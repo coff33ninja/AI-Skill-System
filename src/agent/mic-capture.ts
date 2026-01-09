@@ -55,48 +55,36 @@ export class MicCapture {
 
   /**
    * Windows: Use ffmpeg to capture from default audio device
+   * First detects available devices, then uses the first audio input
    */
   private startWindows(): void {
-    // ffmpeg with DirectShow for Windows mic capture
-    this.process = spawn("ffmpeg", [
-      "-f", "dshow",
-      "-i", "audio=@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\\wave_{00000000-0000-0000-0000-000000000000}",
-      "-ar", "16000",      // 16kHz sample rate
-      "-ac", "1",          // mono
-      "-f", "s16le",       // 16-bit signed little-endian PCM
-      "-"                  // output to stdout
-    ], {
-      stdio: ["ignore", "pipe", "pipe"]
-    });
-
-    // If default device fails, try with "Microphone" name
-    this.process.on("error", () => {
-      this.tryWindowsFallback();
-    });
-
-    this.setupProcessHandlers();
-  }
-
-  private tryWindowsFallback(): void {
-    // Try common microphone names
-    this.process = spawn("ffmpeg", [
+    // First, list available devices
+    const listProcess = spawn("ffmpeg", [
       "-f", "dshow",
       "-list_devices", "true",
       "-i", "dummy"
     ], { stdio: ["ignore", "pipe", "pipe"] });
 
     let deviceList = "";
-    this.process.stderr?.on("data", (data) => {
+    listProcess.stderr?.on("data", (data) => {
       deviceList += data.toString();
     });
 
-    this.process.on("close", () => {
-      // Parse device list and try first audio device
+    listProcess.on("close", () => {
+      // Parse device list and find first audio device
       const audioMatch = deviceList.match(/"([^"]+)" \(audio\)/);
       if (audioMatch) {
         this.startWindowsWithDevice(audioMatch[1]);
       } else {
-        this.onErrorCallback?.(new Error("No audio input device found. Install ffmpeg and check microphone."));
+        // Try alternative pattern for newer ffmpeg
+        const altMatch = deviceList.match(/\[dshow[^\]]*\]\s+"([^"]+)"\s+\(audio\)/);
+        if (altMatch) {
+          this.startWindowsWithDevice(altMatch[1]);
+        } else {
+          console.error("❌ No audio input device found");
+          console.error("   Available devices:\n" + deviceList);
+          this.onErrorCallback?.(new Error("No audio input device found. Check microphone connection."));
+        }
       }
     });
   }

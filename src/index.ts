@@ -103,7 +103,7 @@ async function startServerMode(keys: string[]) {
   const agent = new GeminiOrchestrator(keys, { useLiveMode: false });
   
   console.log("🔌 Connecting to MCP server...");
-  await agent.connectMCP("node", ["src/mcp/computer-control-server.ts"]);
+  await agent.connectMCP("npx", ["tsx", "src/mcp/computer-control-server.ts"]);
 
   // Create HTTP server
   const httpServer = createServer(async (req, res) => {
@@ -278,7 +278,7 @@ async function startLocalMode(keys: string[], mode: "voice" | "text" | "hybrid")
   
   // Connect to local Control Server
   console.log("🔌 Connecting to MCP server...");
-  await agent.connectMCP("node", ["src/mcp/computer-control-server.ts"]);
+  await agent.connectMCP("npx", ["tsx", "src/mcp/computer-control-server.ts"]);
 
   // Voice mode: Connect Live API and start listening
   if (useVoice) {

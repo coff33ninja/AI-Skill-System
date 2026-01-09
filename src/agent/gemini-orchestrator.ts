@@ -473,6 +473,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
 
   const orchestrator = new GeminiOrchestrator(keys);
-  await orchestrator.connectMCP("node", ["src/mcp/computer-control-server.ts"]);
+  await orchestrator.connectMCP("npx", ["tsx", "src/mcp/computer-control-server.ts"]);
   await orchestrator.execute("Enable control, observe the screen, and tell me what you see.");
 }
