@@ -1,5 +1,6 @@
 import { ExecutionTrace, SkillGraph, SkillNode, SkillEdge } from "./skill-graph.js";
 import { SkillStorage } from "./storage.js";
+import { DriftTracker } from "./drift-tracker.js";
 
 export class SkillRecorder {
   private traces = new Map<string, ExecutionTrace>();
@@ -56,6 +57,7 @@ export class SkillRecorder {
       if (similarity > 0.7) {
         console.log(`🔗 Matched existing skill: ${skill.skillId} (similarity: ${similarity.toFixed(2)})`);
         skillToProcess = skill;
+        trace.skillId = skill.skillId; // Link trace to matched skill
         break;
       }
     }
@@ -63,12 +65,17 @@ export class SkillRecorder {
     // 2. Create if no match, otherwise reinforce
     if (!skillToProcess) {
       skillToProcess = this._createNewSkill(trace);
+      trace.skillId = skillToProcess.skillId;
       console.log(`✨ Created new skill: ${skillToProcess.skillId}`);
       console.log(`   Description: ${skillToProcess.description}`);
+      console.log(`   Tags: ${skillToProcess.tags.join(', ') || 'none'}`);
     } else {
       this._reinforceSkill(skillToProcess, trace);
       console.log(`💪 Reinforced skill: ${skillToProcess.skillId}`);
       console.log(`   Confidence: ${skillToProcess.confidence.toFixed(2)}, Executions: ${skillToProcess.totalExecutions}`);
+      
+      // Check for drift on reinforced skills
+      await this.checkDrift(skillToProcess);
     }
     
     // 3. Save
@@ -77,11 +84,35 @@ export class SkillRecorder {
     this.traces.delete(traceId);
   }
 
+  /**
+   * Check skill drift and log warnings if significant changes detected
+   */
+  private async checkDrift(skill: SkillGraph) {
+    const driftTracker = new DriftTracker();
+    const analysis = await driftTracker.analyzeDrift(skill.skillId);
+    
+    // Warn if confidence dropped significantly
+    if (analysis.confidenceTrend < -0.2) {
+      console.warn(`⚠️  Drift warning: ${skill.skillId} confidence dropped by ${Math.abs(analysis.confidenceTrend).toFixed(2)}`);
+    }
+    
+    // Warn if getting much slower
+    if (analysis.speedTrend > 1000) {
+      console.warn(`⚠️  Drift warning: ${skill.skillId} is ${(analysis.speedTrend / 1000).toFixed(1)}s slower than baseline`);
+    }
+    
+    // Warn if complexity changed
+    if (Math.abs(analysis.complexityTrend) >= 2) {
+      const direction = analysis.complexityTrend > 0 ? 'more' : 'fewer';
+      console.warn(`⚠️  Drift warning: ${skill.skillId} now has ${Math.abs(analysis.complexityTrend)} ${direction} steps`);
+    }
+  }
+
   private _createNewSkill(trace: ExecutionTrace): SkillGraph {
     return {
       skillId: `skill_${Date.now()}`,
       description: this.inferDescription(trace),
-      tags: [],
+      tags: this.inferTags(trace),
       nodes: trace.steps.map((s, i) => ({
         id: `${s.tool}_${i}`,
         tool: s.tool,
@@ -95,6 +126,42 @@ export class SkillRecorder {
       totalExecutions: 1,
       confidence: trace.outcome === 'success' ? 0.5 : 0.2
     };
+  }
+
+  /**
+   * Auto-generate tags based on tools used in the trace
+   */
+  private inferTags(trace: ExecutionTrace): string[] {
+    const tags = new Set<string>();
+    
+    for (const step of trace.steps) {
+      const tool = step.tool.toLowerCase();
+      
+      if (tool.includes('mouse')) {
+        tags.add('mouse');
+      }
+      if (tool.includes('keyboard') || tool.includes('type') || tool.includes('shortcut')) {
+        tags.add('keyboard');
+      }
+      if (tool.includes('screen') || tool.includes('observe') || tool.includes('screenshot')) {
+        tags.add('screenshot');
+      }
+      if (tool.includes('control')) {
+        tags.add('control');
+      }
+    }
+    
+    // Tag multi-step sequences
+    if (trace.steps.length > 2) {
+      tags.add('multi-step');
+    }
+    
+    // Tag by outcome
+    if (trace.outcome === 'success') {
+      tags.add('successful');
+    }
+    
+    return Array.from(tags);
   }
 
   private buildEdges(trace: ExecutionTrace): SkillEdge[] {

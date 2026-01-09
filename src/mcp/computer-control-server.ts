@@ -3,6 +3,8 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import screenshot from "screenshot-desktop";
+import { SkillStorage } from "../memory/storage.js";
+import { DriftTracker } from "../memory/drift-tracker.js";
 
 // Optional nut-js dependency for mouse/keyboard control
 let mouse: any;
@@ -30,6 +32,8 @@ interface ControlState {
 }
 
 const state: ControlState = { enabled: false };
+const skillStorage = new SkillStorage();
+const driftTracker = new DriftTracker();
 
 const server = new Server(
   { name: "human-computer-control", version: "1.0.0" },
@@ -97,6 +101,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         type: "object",
         properties: { keys: { type: "string" } },
         required: ["keys"]
+      }
+    },
+    {
+      name: "skills_list",
+      description: "List all learned skills with their confidence and execution count",
+      inputSchema: { type: "object", properties: {} }
+    },
+    {
+      name: "skills_search",
+      description: "Search skills by tag (mouse, keyboard, screenshot, multi-step)",
+      inputSchema: {
+        type: "object",
+        properties: { tag: { type: "string" } },
+        required: ["tag"]
+      }
+    },
+    {
+      name: "skills_drift",
+      description: "Get drift analysis for a specific skill showing confidence/speed/complexity trends",
+      inputSchema: {
+        type: "object",
+        properties: { skillId: { type: "string" } },
+        required: ["skillId"]
       }
     }
   ]
@@ -227,6 +254,56 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       for (const k of keyList.reverse()) await keyboard.releaseKey(k);
       
       return { content: [{ type: "text", text: `Shortcut: ${keys}` }] };
+    }
+
+    case "skills_list": {
+      const skills = await skillStorage.loadSkills();
+      if (skills.length === 0) {
+        return { content: [{ type: "text", text: "No skills learned yet. Execute some commands to build skill memory." }] };
+      }
+      
+      const summary = skills.map(s => ({
+        id: s.skillId,
+        description: s.description,
+        tags: s.tags,
+        confidence: Math.round(s.confidence * 100) + '%',
+        executions: s.totalExecutions,
+        lastUsed: new Date(s.lastUsed).toLocaleDateString()
+      }));
+      
+      return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
+    }
+
+    case "skills_search": {
+      const { tag } = args as { tag: string };
+      const skills = await skillStorage.loadSkills();
+      const matched = skills.filter(s => s.tags.includes(tag.toLowerCase()));
+      
+      if (matched.length === 0) {
+        return { content: [{ type: "text", text: `No skills found with tag: ${tag}` }] };
+      }
+      
+      const summary = matched.map(s => ({
+        id: s.skillId,
+        description: s.description,
+        confidence: Math.round(s.confidence * 100) + '%'
+      }));
+      
+      return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
+    }
+
+    case "skills_drift": {
+      const { skillId } = args as { skillId: string };
+      const analysis = await driftTracker.analyzeDrift(skillId);
+      
+      const report = {
+        skillId,
+        confidenceTrend: analysis.confidenceTrend > 0 ? `+${analysis.confidenceTrend.toFixed(2)}` : analysis.confidenceTrend.toFixed(2),
+        speedTrend: analysis.speedTrend > 0 ? `+${analysis.speedTrend.toFixed(0)}ms (slower)` : `${analysis.speedTrend.toFixed(0)}ms (faster)`,
+        complexityTrend: analysis.complexityTrend > 0 ? `+${analysis.complexityTrend} steps` : `${analysis.complexityTrend} steps`
+      };
+      
+      return { content: [{ type: "text", text: JSON.stringify(report, null, 2) }] };
     }
 
     default:

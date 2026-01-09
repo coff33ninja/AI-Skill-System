@@ -7,6 +7,7 @@ import { DriftTracker } from "../memory/drift-tracker.js";
 import { GeminiLiveClient, LiveEvent } from "./gemini-live-client.js";
 import { AudioPlayer } from "./audio-player.js";
 import { MicCapture } from "./mic-capture.js";
+import { MeshClient } from "../mcp/mesh-client.js";
 
 // Model configuration - Current Gemini models (as of January 2026)
 // See: https://ai.google.dev/gemini-api/docs/models
@@ -32,6 +33,7 @@ export class GeminiOrchestrator {
   private recorder: SkillRecorder;
   private driftTracker: DriftTracker;
   private mcp?: Client;
+  private meshClient?: MeshClient;
   private currentModel?: any;
   private currentApiKey?: string;
   private liveClient?: GeminiLiveClient;
@@ -39,6 +41,7 @@ export class GeminiOrchestrator {
   private audioPlayer: AudioPlayer;
   private micCapture: MicCapture;
   private isListening: boolean = false;
+  private useRemote: boolean = false;
 
   constructor(apiKeys: string[], options?: { useLiveMode?: boolean }) {
     this.keyPool = new GeminiKeyPool(apiKeys);
@@ -104,16 +107,13 @@ Stop immediately if uncertain.
       console.log("🔧 Live API tool call received");
       const toolCall = event.data;
       
-      if (toolCall.functionCalls && this.mcp) {
+      if (toolCall.functionCalls) {
         const responses: Array<{ name: string; response: any }> = [];
         
         for (const fc of toolCall.functionCalls) {
           console.log(`🔧 Executing: ${fc.name}`);
           try {
-            const result = await this.mcp.callTool({
-              name: fc.name,
-              arguments: fc.args || {}
-            });
+            const result = await this.callTool(fc.name, fc.args || {});
             responses.push({ name: fc.name, response: result });
             console.log(`✅ Tool ${fc.name} completed`);
           } catch (err) {
@@ -238,7 +238,53 @@ Stop immediately if uncertain.
     );
 
     await this.mcp.connect(transport);
-    console.log("✅ MCP connected");
+    this.useRemote = false;
+    console.log("✅ MCP connected (local)");
+  }
+
+  /**
+   * Connect to a remote mesh node instead of local MCP
+   */
+  async connectMesh(host: string, port: number = 8080, token: string): Promise<void> {
+    this.meshClient = new MeshClient(host, port, token);
+    await this.meshClient.connect();
+    this.useRemote = true;
+    console.log(`✅ Connected to remote mesh node at ${host}:${port}`);
+  }
+
+  /**
+   * Disconnect from mesh node
+   */
+  disconnectMesh(): void {
+    this.meshClient?.disconnect();
+    this.meshClient = undefined;
+    this.useRemote = false;
+  }
+
+  /**
+   * Call a tool - routes to local MCP or remote mesh based on connection
+   */
+  private async callTool(name: string, args: Record<string, unknown> = {}): Promise<any> {
+    if (this.useRemote && this.meshClient?.connected) {
+      return this.meshClient.callTool(name, args);
+    } else if (this.mcp) {
+      return this.mcp.callTool({ name, arguments: args });
+    } else {
+      throw new Error("No MCP or mesh connection available");
+    }
+  }
+
+  /**
+   * List available tools from local MCP or remote mesh
+   */
+  private async listTools(): Promise<{ tools: any[] }> {
+    if (this.useRemote && this.meshClient?.connected) {
+      return this.meshClient.listTools();
+    } else if (this.mcp) {
+      return this.mcp.listTools();
+    } else {
+      return { tools: [] };
+    }
   }
 
   /**
@@ -253,22 +299,18 @@ Stop immediately if uncertain.
   }
 
   /**
-   * Execute a single tool call via MCP
+   * Execute a single tool call via MCP or Mesh
    */
   private async executeToolCall(toolCall: FunctionCall, traceId: string): Promise<any> {
-    if (!this.mcp) {
-      throw new Error("MCP not connected");
-    }
-
     const startTime = Date.now();
     console.log(`🔧 Calling tool: ${toolCall.name}`);
     console.log(`   Args:`, JSON.stringify(toolCall.args, null, 2));
 
     try {
-      const result = await this.mcp.callTool({
-        name: toolCall.name,
-        arguments: (toolCall.args || {}) as {[key: string]: unknown}
-      });
+      const result = await this.callTool(
+        toolCall.name,
+        (toolCall.args || {}) as Record<string, unknown>
+      );
 
       const duration = Date.now() - startTime;
       this.recorder.recordStep(traceId, toolCall.name, true, duration, toolCall.args);
@@ -298,8 +340,8 @@ Stop immediately if uncertain.
       const genAI = new GoogleGenerativeAI(this.currentApiKey);
 
       try {
-        // Get available tools from MCP
-        const toolsResponse = this.mcp ? await this.mcp.listTools() : { tools: [] };
+        // Get available tools from MCP or Mesh
+        const toolsResponse = await this.listTools();
         const mcpTools = toolsResponse.tools || [];
         const geminiTools = this.convertMCPToolsToGemini(mcpTools);
 
