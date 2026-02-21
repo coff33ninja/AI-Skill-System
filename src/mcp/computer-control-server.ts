@@ -33,6 +33,10 @@ try {
   console.error("⚠️  nut-js not available. Mouse/keyboard control disabled.");
 }
 
+function normalizeImageBuffer(image: Uint8Array | Buffer): Buffer {
+  return Buffer.isBuffer(image) ? image : Buffer.from(image);
+}
+
 interface ControlState {
   enabled: boolean;
   grantedAt?: number;
@@ -1828,7 +1832,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       const { x, y, width, height } = args as { x: number; y: number; width: number; height: number };
       
       // Capture full screen then crop with sharp
-      const fullImg = await screenshot({ format: "png" });
+      const fullImg = normalizeImageBuffer(await screenshot({ format: "png" }));
       
       try {
         const sharp = (await import("sharp")).default;
@@ -1884,7 +1888,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       
       try {
         const sharp = (await import("sharp")).default;
-        const fullImg = await screenshot({ format: "png" });
+        const fullImg = normalizeImageBuffer(await screenshot({ format: "png" }));
         
         // Crop region
         const cropped = await sharp(fullImg)
@@ -2261,16 +2265,23 @@ foreach ($el in $elements) {
       
       try {
         const Tesseract = await import("tesseract.js");
-        const screenshotData = await screenshot({ format: "png" });
-        let img: Buffer = Buffer.isBuffer(screenshotData)
-          ? screenshotData
-          : Buffer.from(screenshotData);
+        const hasRegionArgs = [x, y, width, height].some((value) => value !== undefined);
+
+        if (hasRegionArgs && [x, y, width, height].some((value) => value === undefined)) {
+          return { content: [{ type: "text", text: "Provide x, y, width, and height together when using region OCR" }] };
+        }
+
+        if (hasRegionArgs && [width, height].some((value) => (value ?? 0) <= 0)) {
+          return { content: [{ type: "text", text: "width and height must be greater than 0" }] };
+        }
+
+        let img = normalizeImageBuffer(await screenshot({ format: "png" }));
         
         // Crop if region specified
-        if (x !== undefined && y !== undefined && width && height) {
+        if (hasRegionArgs) {
           const sharp = (await import("sharp")).default;
           img = await sharp(img)
-            .extract({ left: x, top: y, width, height })
+            .extract({ left: x!, top: y!, width: width!, height: height! })
             .png()
             .toBuffer();
         }
@@ -3167,7 +3178,7 @@ foreach ($el in $elements) {
       
       // Capture region and return as image - actual OCR would need tesseract.js
       // For now, capture the region so AI vision can read it
-      const fullImg = await screenshot({ format: "png" });
+      const fullImg = normalizeImageBuffer(await screenshot({ format: "png" }));
       
       try {
         const sharp = (await import("sharp")).default;
