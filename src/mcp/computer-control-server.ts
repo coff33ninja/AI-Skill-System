@@ -2261,7 +2261,10 @@ foreach ($el in $elements) {
       
       try {
         const Tesseract = await import("tesseract.js");
-        let img = await screenshot({ format: "png" });
+        const screenshotData = await screenshot({ format: "png" });
+        let img: Buffer = Buffer.isBuffer(screenshotData)
+          ? screenshotData
+          : Buffer.from(screenshotData);
         
         // Crop if region specified
         if (x !== undefined && y !== undefined && width && height) {
