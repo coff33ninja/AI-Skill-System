@@ -68,6 +68,12 @@ cd ai-skill-system
 npm install
 
 # Create your config file
+cp .env.example .env
+```
+
+On Windows (Command Prompt), use:
+
+```bat
 copy .env.example .env
 ```
 
