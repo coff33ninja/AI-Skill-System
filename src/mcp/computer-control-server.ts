@@ -37,6 +37,37 @@ function normalizeImageBuffer(image: Uint8Array | Buffer): Buffer {
   return Buffer.isBuffer(image) ? image : Buffer.from(image);
 }
 
+function validateRegionArgs(
+  x: number | undefined,
+  y: number | undefined,
+  width: number | undefined,
+  height: number | undefined
+): { hasRegion: boolean; error?: string } {
+  const hasRegion = [x, y, width, height].some((value) => value !== undefined);
+
+  if (!hasRegion) {
+    return { hasRegion: false };
+  }
+
+  if ([x, y, width, height].some((value) => value === undefined)) {
+    return { hasRegion: true, error: "Provide x, y, width, and height together" };
+  }
+
+  if ([x, y, width, height].some((value) => !Number.isFinite(value))) {
+    return { hasRegion: true, error: "x, y, width, and height must be finite numbers" };
+  }
+
+  if (x! < 0 || y! < 0) {
+    return { hasRegion: true, error: "x and y must be >= 0" };
+  }
+
+  if (width! <= 0 || height! <= 0) {
+    return { hasRegion: true, error: "width and height must be greater than 0" };
+  }
+
+  return { hasRegion: true };
+}
+
 interface ControlState {
   enabled: boolean;
   grantedAt?: number;
@@ -1830,6 +1861,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       if (!state.enabled) throw new Error("Control not enabled");
       
       const { x, y, width, height } = args as { x: number; y: number; width: number; height: number };
+      const regionValidation = validateRegionArgs(x, y, width, height);
+      if (regionValidation.error) {
+        return { content: [{ type: "text", text: `Invalid region: ${regionValidation.error}` }] };
+      }
       
       // Capture full screen then crop with sharp
       const fullImg = normalizeImageBuffer(await screenshot({ format: "png" }));
@@ -1885,6 +1920,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
     case "screen_dominant_colors": {
       const { x, y, width, height, count = 5 } = args as { x: number; y: number; width: number; height: number; count?: number };
+      const regionValidation = validateRegionArgs(x, y, width, height);
+      if (regionValidation.error) {
+        return { content: [{ type: "text", text: `Invalid region: ${regionValidation.error}` }] };
+      }
       
       try {
         const sharp = (await import("sharp")).default;
@@ -2265,20 +2304,15 @@ foreach ($el in $elements) {
       
       try {
         const Tesseract = await import("tesseract.js");
-        const hasRegionArgs = [x, y, width, height].some((value) => value !== undefined);
-
-        if (hasRegionArgs && [x, y, width, height].some((value) => value === undefined)) {
-          return { content: [{ type: "text", text: "Provide x, y, width, and height together when using region OCR" }] };
-        }
-
-        if (hasRegionArgs && [width, height].some((value) => (value ?? 0) <= 0)) {
-          return { content: [{ type: "text", text: "width and height must be greater than 0" }] };
+        const regionValidation = validateRegionArgs(x, y, width, height);
+        if (regionValidation.error) {
+          return { content: [{ type: "text", text: `Invalid region: ${regionValidation.error}` }] };
         }
 
         let img = normalizeImageBuffer(await screenshot({ format: "png" }));
         
         // Crop if region specified
-        if (hasRegionArgs) {
+        if (regionValidation.hasRegion) {
           const sharp = (await import("sharp")).default;
           img = await sharp(img)
             .extract({ left: x!, top: y!, width: width!, height: height! })
@@ -3175,6 +3209,10 @@ foreach ($el in $elements) {
       if (!state.enabled) throw new Error("Control not enabled");
       
       const { x, y, width, height } = args as { x: number; y: number; width: number; height: number };
+      const regionValidation = validateRegionArgs(x, y, width, height);
+      if (regionValidation.error) {
+        return { content: [{ type: "text", text: `Invalid region: ${regionValidation.error}` }] };
+      }
       
       // Capture region and return as image - actual OCR would need tesseract.js
       // For now, capture the region so AI vision can read it
